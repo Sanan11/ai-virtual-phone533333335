@@ -81,9 +81,22 @@ export type ChatSession = {
     groupContextSetting?: string; // 成员关系与情境背景设定文本
     groupWorldBookIds?: string[]; // 该群聊绑定的世界书 ID 列表
     groupPresetId?: string; // 该群聊绑定的专属预设 ID
+    groupNotice?: string; // 群公告内容
+    groupUserNickname?: string; // 我在本群的群名片/专属昵称
+    groupMemberTitles?: Record<string, string>; // 成员专属头衔映射（characterId 或 "self" → 头衔文本，如 "掌门"、"团宠"）
+    groupAvatar?: string; // 群头像
+    groupRules?: string; // 群规/群聊互动基调
     // 角色与用户的专属关系及备注
     characterUserRelationship?: string; // 角色与用户的关系设定（如暗恋的青梅竹马）
     characterUserRemark?: string; // 角色对用户的专属备注名（如笨蛋、长官）
+    // 一起听歌状态
+    listenTogetherTrack?: {
+        id: string;
+        name: string;
+        artist: string;
+        cover?: string;
+        startedAt: string;
+    };
 };
 
 export type ChatMessageStatus = "sending" | "sent" | "read" | "failed";

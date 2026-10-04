@@ -421,6 +421,11 @@ export function ChatSettingsPanel({
     const [groupContextSetting, setGroupContextSetting] = useState(session.groupContextSetting || "");
     const [groupWorldBookIds, setGroupWorldBookIds] = useState<string[]>(session.groupWorldBookIds || []);
     const [groupPresetId, setGroupPresetId] = useState<string>(session.groupPresetId || "");
+    const [groupNotice, setGroupNotice] = useState(session.groupNotice || "");
+    const [groupUserNickname, setGroupUserNickname] = useState(session.groupUserNickname || "");
+    const [groupRules, setGroupRules] = useState(session.groupRules || "");
+    const [groupMemberTitles, setGroupMemberTitles] = useState<Record<string, string>>(session.groupMemberTitles || {});
+    const [showTitleEditor, setShowTitleEditor] = useState(false);
     const [showGroupWorldBookPicker, setShowGroupWorldBookPicker] = useState(false);
     const [showAiDeriveModal, setShowAiDeriveModal] = useState(false);
     const [aiDeriveInstruction, setAiDeriveInstruction] = useState("");
@@ -1104,6 +1109,53 @@ export function ChatSettingsPanel({
                                 </select>
                             </div>
                         </div>
+
+                        {/* 我在本群的群名片（QQ/微信经典） */}
+                        <div className="p-4 border-t border-[var(--c-border)]/50 flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-[var(--c-text-title)]">我在本群的昵称（群名片）</span>
+                                <span className="text-[11px] text-[var(--c-text-sub)]">群内角色将直接叫你此名字</span>
+                            </div>
+                            <Input
+                                value={groupUserNickname}
+                                onChange={e => {
+                                    setGroupUserNickname(e.target.value);
+                                    updateSession({ groupUserNickname: e.target.value });
+                                }}
+                                placeholder="例如：实习生小陈、冤种室友、盟主"
+                                className="ui-input text-xs w-full"
+                            />
+                        </div>
+
+                        {/* 置顶群公告 */}
+                        <div className="p-4 border-t border-[var(--c-border)]/50 flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-[var(--c-text-title)]">置顶群公告</span>
+                                <span className="text-[11px] text-[var(--c-text-sub)]">角色发言时会自然讨论公告内容</span>
+                            </div>
+                            <textarea
+                                value={groupNotice}
+                                onChange={e => {
+                                    setGroupNotice(e.target.value);
+                                    updateSession({ groupNotice: e.target.value });
+                                }}
+                                placeholder="输入本群置顶公告，例如：今晚八点聚餐，迟到的人请喝奶茶！"
+                                className="ui-input text-xs w-full p-2 rounded-xl"
+                                style={{ minHeight: 60, resize: "vertical" }}
+                            />
+                        </div>
+
+                        {/* 成员专属群头衔管理（QQ群精髓） */}
+                        <button className="menu-item border-t border-[var(--c-border)]/50" onClick={() => setShowTitleEditor(true)}>
+                            <ChatInfoIcon icon={Users} color={BINDING_ACCENTS.api} />
+                            <div className="menu-label-group">
+                                <span className="menu-label">群成员专属头衔</span>
+                                <span className="menu-desc">为群成员佩戴专属彩色徽章（如：掌门、团宠、气氛组）</span>
+                            </div>
+                            <div className="menu-right">
+                                <ChevronRight size={16} />
+                            </div>
+                        </button>
                     </div>
                 )}
 
@@ -2132,6 +2184,82 @@ export function ChatSettingsPanel({
                                         <span>开始推导</span>
                                     </>
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 群成员专属头衔管理弹窗（QQ群精髓） */}
+            {showTitleEditor && (
+                <div className="modal-backdrop" onClick={() => setShowTitleEditor(false)}>
+                    <div
+                        className="modal-content max-w-sm w-full mx-4 overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col max-h-[80vh]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="modal-header px-4 py-3 border-b border-[var(--c-border)] flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Users size={16} className="text-[var(--c-primary)]" />
+                                <span className="text-sm font-semibold text-[var(--c-text-title)]">群成员专属头衔设置</span>
+                            </div>
+                            <button
+                                type="button"
+                                className="modal-header-btn"
+                                onClick={() => setShowTitleEditor(false)}
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex flex-col gap-3 flex-1 text-xs">
+                            <p className="text-[var(--c-text-sub)] leading-relaxed">
+                                为每位成员设定头衔（如：掌门、小跟班、气氛组、团宠）。头衔将佩戴在聊天气泡的昵称旁边，并注入模型约束角色的发言态度。
+                            </p>
+                            <div className="flex flex-col gap-2.5">
+                                {/* 自己的头衔 */}
+                                <div className="p-2.5 rounded-xl border border-[var(--c-border)] bg-[var(--c-card)] flex items-center justify-between gap-2">
+                                    <span className="font-medium text-[var(--c-text-title)] min-w-[70px]">我 ({groupUserNickname || userName})</span>
+                                    <input
+                                        type="text"
+                                        value={groupMemberTitles["self"] || ""}
+                                        onChange={e => {
+                                            const next = { ...groupMemberTitles, self: e.target.value };
+                                            setGroupMemberTitles(next);
+                                            updateSession({ groupMemberTitles: next });
+                                        }}
+                                        placeholder="设置我的头衔 (如: 掌门)"
+                                        className="ui-input text-xs flex-1 py-1 px-2 rounded-lg"
+                                    />
+                                </div>
+                                {/* 各角色的头衔 */}
+                                {(session.participantIds || []).map(charId => {
+                                    const c = characters.find(ch => ch.id === charId);
+                                    if (!c) return null;
+                                    return (
+                                        <div key={charId} className="p-2.5 rounded-xl border border-[var(--c-border)] bg-[var(--c-card)] flex items-center justify-between gap-2">
+                                            <span className="font-medium text-[var(--c-text-title)] min-w-[70px] truncate">{c.name}</span>
+                                            <input
+                                                type="text"
+                                                value={groupMemberTitles[charId] || ""}
+                                                onChange={e => {
+                                                    const next = { ...groupMemberTitles, [charId]: e.target.value };
+                                                    setGroupMemberTitles(next);
+                                                    updateSession({ groupMemberTitles: next });
+                                                }}
+                                                placeholder="佩戴头衔 (如: 团宠、毒舌)"
+                                                className="ui-input text-xs flex-1 py-1 px-2 rounded-lg"
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="p-3 border-t border-[var(--c-border)] flex justify-end">
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn-primary w-full text-xs py-2"
+                                onClick={() => setShowTitleEditor(false)}
+                            >
+                                完成
                             </button>
                         </div>
                     </div>

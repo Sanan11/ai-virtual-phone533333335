@@ -462,6 +462,8 @@ async function buildGroupChatPromptMessages(
         .map(id => allWorldBooks.find(w => w.id === id))
         .filter(Boolean) as typeof allWorldBooks;
 
+    const effectiveUserName = session.groupUserNickname?.trim() || userName;
+
     const llmMessages = assembleGroupPromptPayload({
         members,
         history: promptHistory,
@@ -469,6 +471,9 @@ async function buildGroupChatPromptMessages(
         regexes,
         groupContextSetting: session.groupContextSetting,
         groupWorldBooks,
+        groupNotice: session.groupNotice,
+        groupRules: session.groupRules,
+        groupMemberTitles: session.groupMemberTitles,
         appTags: activeAppTags,
         userIdentity,
         userName,

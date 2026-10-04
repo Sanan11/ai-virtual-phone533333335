@@ -1647,6 +1647,9 @@ export interface GroupAssemblerInput {
     nativeToolHistory?: boolean;
     groupContextSetting?: string;
     groupWorldBooks?: WorldBookConfig[];
+    groupNotice?: string;
+    groupRules?: string;
+    groupMemberTitles?: Record<string, string>;
 }
 
 function pushGroupChronologicalShortTermBlocks(params: {
@@ -1818,6 +1821,40 @@ export function assembleGroupPromptPayload(input: GroupAssemblerInput): LLMMessa
             depth: beforeHistoryDepth,
             order: orderIdx++,
             marker: "group_relationships_and_context",
+        });
+    }
+
+    // 1.3 群公告与群规 (Group Notice & Rules)
+    if (input.groupNotice?.trim() || input.groupRules?.trim()) {
+        const noticeParts = ["<group_notice_and_rules>"];
+        if (input.groupNotice?.trim()) {
+            noticeParts.push(`【置顶群公告】：\n${input.groupNotice.trim()}`);
+        }
+        if (input.groupRules?.trim()) {
+            noticeParts.push(`【本群互动规范与基调】：\n${input.groupRules.trim()}`);
+        }
+        noticeParts.push("全体成员日常发言必须了解并遵守上述群规与公告！", "</group_notice_and_rules>");
+        blocks.push({
+            text: noticeParts.join("\n"),
+            role: "system",
+            depth: beforeHistoryDepth,
+            order: orderIdx++,
+            marker: "group_notice_and_rules",
+        });
+    }
+
+    // 1.4 群成员专属头衔 (Group Member Titles)
+    if (input.groupMemberTitles && Object.keys(input.groupMemberTitles).length > 0) {
+        const titleLines = Object.entries(input.groupMemberTitles).map(([id, title]) => {
+            const name = id === "self" ? resolvedUserName : (members.find(m => m.character.id === id)?.character.name || id);
+            return `- ${name}：拥有本群专属头衔【${title}】`;
+        });
+        blocks.push({
+            text: `<group_member_titles>\n### 本群专属成员头衔与身份\n${titleLines.join("\n")}\n群成员发言互动需符合其头衔身份定位。\n</group_member_titles>`,
+            role: "system",
+            depth: beforeHistoryDepth,
+            order: orderIdx++,
+            marker: "group_member_titles",
         });
     }
 

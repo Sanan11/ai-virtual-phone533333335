@@ -59,6 +59,7 @@ import { setDebugChatState } from "@/lib/debug-store";
 import { SessionCustomCSS } from "@/components/ui/session-custom-css";
 import { setChatActive } from "@/lib/music-action-queue";
 import { getMusicControlBridge } from "@/lib/music-control-bridge";
+import { useMusicPlayerOptional } from "@/lib/music-context";
 import { findPlayableMatch, getNeteaseLyrics, getNeteaseSongDetail } from "@/lib/music-service";
 import { approveMemoryWriteRequest } from "@/lib/tool-executor";
 import type { MemoryWriteRequest, ToolResult } from "@/lib/tool-executor";
@@ -731,7 +732,10 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         { icon: <Gift size={22} strokeWidth={1.5} color="var(--c-text)" />, label: "礼物", onClick: () => onOpenRichModal("gift") },
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>, label: "位置", onClick: () => onOpenRichModal("location") },
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="8" y1="22" x2="16" y2="22" /></svg>, label: "语音条", onClick: () => onOpenRichModal("voice_msg") },
-        ...(!isGroup ? [{ icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>, label: "线下邀约", onClick: () => onOpenRichModal("date_invite") }] : []),
+        ...(!isGroup ? [
+            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>, label: "线下邀约", onClick: () => onOpenRichModal("date_invite") },
+            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>, label: "一起听", onClick: () => setShowMusicPicker(true) }
+        ] : []),
         ...customPlusActions.map(action => ({
             icon: action.appIconDataUrl
                 ? <span className="chat-plus-custom-app-icon" style={{ backgroundImage: `url(${action.appIconDataUrl})` }} aria-hidden="true" />
@@ -1135,6 +1139,8 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
     const [callInitiatorName, setCallInitiatorName] = useState<string>("");
     const [userIdentity, setUserIdentity] = useState<UserIdentity | null>(null);
     const [enterToSendEnabled, setEnterToSendEnabled] = useState(() => loadChatAppSettings().enterToSendEnabled === true);
+    const musicPlayer = useMusicPlayerOptional();
+    const [showMusicPicker, setShowMusicPicker] = useState(false);
 
     // Rich media input modals
     const [richModal, setRichModal] = useState<RichModalKind | null>(null);
@@ -5504,6 +5510,33 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                 className="chat-plugin-header chat-room-main-pane"
             />
 
+            {/* 一起听音乐挂件（网易云/QQ音乐同款） */}
+            {!session.isGroup && musicPlayer?.currentTrack && (
+                <div className="mx-4 mt-1.5 px-3 py-1.5 rounded-full bg-[var(--c-card)]/90 backdrop-blur-md border border-[var(--c-border)] shadow-xs flex items-center justify-between text-xs z-10 animate-in fade-in">
+                    <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
+                        <div className="w-5 h-5 rounded-full bg-black/80 flex items-center justify-center shrink-0 animate-spin text-[10px] text-white" style={{ animationDuration: '4s' }}>
+                            💿
+                        </div>
+                        <div className="flex items-baseline gap-1.5 truncate">
+                            <span className="text-[11px] text-[var(--c-primary)] font-medium shrink-0">与 {character?.name || "TA"} 一起听:</span>
+                            <span className="font-semibold truncate text-[var(--c-text-title)]">{musicPlayer.currentTrack.name}</span>
+                            {musicPlayer.currentTrack.artist && (
+                                <span className="text-[10px] text-[var(--c-text-sub)] truncate">- {musicPlayer.currentTrack.artist}</span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => musicPlayer.togglePlay()}
+                            className="text-[11px] text-[var(--c-primary)] font-medium hover:underline"
+                        >
+                            {musicPlayer.isPlaying ? "暂停" : "播放"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Message List */}
             <div
                 ref={scrollRef}
@@ -6044,7 +6077,20 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                                             {...(isStandaloneHtmlPreview ? { "data-html": "true" } : {})}
                                         >
                                             {session.isGroup && msg.role !== "user" && (
-                                                <span className="chat-group-sender-name">{msg.senderName || ""}{renderGroupRoleBadge(msg.senderCharacterId)}</span>
+                                                <span className="chat-group-sender-name flex items-center gap-1.5">
+                                                    <span>{msg.senderName || ""}</span>
+                                                    {renderGroupRoleBadge(msg.senderCharacterId)}
+                                                    {msg.senderCharacterId && session.groupMemberTitles?.[msg.senderCharacterId] && (
+                                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[var(--c-primary)]/15 text-[var(--c-primary)] font-medium border border-[var(--c-primary)]/30">
+                                                            {session.groupMemberTitles[msg.senderCharacterId]}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            )}
+                                            {session.isGroup && msg.role === "user" && session.groupMemberTitles?.["self"] && (
+                                                <span className="chat-group-sender-name self-end flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium border border-amber-500/30 mb-0.5">
+                                                    {session.groupMemberTitles["self"]}
+                                                </span>
                                             )}
                                             <div
                                             {...(editingMessageId !== msg.id ? {
@@ -6561,6 +6607,66 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                     }}
                     onClose={() => setRichModal(null)}
                 />
+            )}
+
+            {/* 一起听音乐选择弹窗 */}
+            {showMusicPicker && (
+                <div className="modal-overlay" onClick={() => setShowMusicPicker(false)}>
+                    <div
+                        className="modal-dialog max-w-sm w-full mx-4 p-4 rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] shadow-xl flex flex-col gap-3"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-2 border-b border-[var(--c-border)]">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-base">🎵</span>
+                                <span className="ts-15 font-semibold text-[var(--c-text-title)]">邀请 {character?.name || "TA"} 一起听歌</span>
+                            </div>
+                            <button type="button" onClick={() => setShowMusicPicker(false)} className="ui-bare-btn">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-xs text-[var(--c-text-sub)]">
+                            输入一首你想和 {character?.name || "TA"} 共同聆听的歌曲，播放时聊天顶部将显示专属一起听状态胶囊：
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <input
+                                type="text"
+                                id="custom-song-input"
+                                placeholder="输入歌名，如：晴天 / 简单爱 / 富士山下..."
+                                className="ui-input text-xs w-full py-2 px-3 rounded-xl"
+                            />
+                        </div>
+                        <div className="flex gap-2.5 mt-2">
+                            <button type="button" onClick={() => setShowMusicPicker(false)} className="ui-btn flex-1 text-xs py-2">
+                                取消
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const input = document.getElementById('custom-song-input') as HTMLInputElement | null;
+                                    const songName = input?.value.trim() || "晴天";
+                                    setShowMusicPicker(false);
+                                    // 1. 发起聊天音乐卡片
+                                    sendRichMessage("music_share", { musicTitle: songName, label: songName }, `[音乐分享:${songName}]`);
+                                    // 2. 如果播放器存在，尝试播放
+                                    if (musicPlayer) {
+                                        musicPlayer.playTrack({
+                                            id: `together_${Date.now()}`,
+                                            title: songName,
+                                            artist: character?.name || "网络精选",
+                                            duration: 240,
+                                            liked: true,
+                                            addedAt: new Date().toISOString(),
+                                        });
+                                    }
+                                }}
+                                className="ui-btn ui-btn-primary flex-1 text-xs py-2"
+                            >
+                                发起一起听
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* 思维链底部弹窗（Claude app 风格） */}
