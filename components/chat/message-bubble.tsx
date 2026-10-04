@@ -96,21 +96,33 @@ export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charNa
         const label = isSelf ? "你" : (msg.senderName || charName || "对方");
         return (
             <div className="flex flex-col items-center justify-center my-1.5 w-full select-none">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--c-bubble-sys-bg,rgba(0,0,0,0.05))] text-[var(--c-text-sub)] text-xs">
-                    <span>{label} 撤回了一条消息</span>
+                <div
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs transition-colors ${
+                        msg.retractedOriginalContent
+                            ? "bg-[var(--c-card)] border border-[var(--c-border)] cursor-pointer hover:bg-[var(--c-input)] shadow-sm"
+                            : "bg-[var(--c-bubble-sys-bg,rgba(0,0,0,0.05))] text-[var(--c-text-sub)]"
+                    }`}
+                    onClick={() => {
+                        if (msg.retractedOriginalContent) {
+                            setShowRetractedPeek(p => !p);
+                        }
+                    }}
+                    role={msg.retractedOriginalContent ? "button" : undefined}
+                >
+                    <span className="text-[var(--c-text-sub)]">{label} 撤回了一条消息</span>
                     {msg.retractedOriginalContent && (
-                        <button
-                            type="button"
-                            className="text-[var(--c-primary)] hover:underline ml-1 cursor-pointer"
-                            onClick={() => setShowRetractedPeek(p => !p)}
-                        >
-                            {showRetractedPeek ? "收起" : "查看"}
-                        </button>
+                        <span className="text-[var(--c-primary)] font-medium text-[11px] flex items-center gap-0.5">
+                            {showRetractedPeek ? "(收起)" : "(点此查看)"}
+                        </span>
                     )}
                 </div>
                 {showRetractedPeek && msg.retractedOriginalContent && (
-                    <div className="mt-1 text-xs px-3 py-1.5 rounded-lg bg-[var(--c-card)] border border-[var(--c-border)] text-[var(--c-text-sub)] max-w-[85%] break-words opacity-80">
-                        [已撤回]: {msg.retractedOriginalContent}
+                    <div className="mt-1.5 text-xs px-3.5 py-2 rounded-xl bg-[var(--c-card)] border border-[var(--c-border)] text-[var(--c-text-title)] max-w-[85%] break-words shadow-sm leading-relaxed animate-in fade-in zoom-in-95 duration-150">
+                        <div className="text-[10px] text-[var(--c-text-sub)] mb-0.5 font-medium flex items-center justify-between">
+                            <span>撤回的原始内容：</span>
+                            <span>{msg.retractedAt ? new Date(msg.retractedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                        </div>
+                        <div className="whitespace-pre-wrap select-text opacity-90">{msg.retractedOriginalContent}</div>
                     </div>
                 )}
             </div>
