@@ -1214,5 +1214,5 @@
   --c-bg: var(--c-panel);
   --c-border: var(--c-panel-border);
   --c-primary: var(--c-icon-active);
-  --c-text-sub: var(--c-text);
+  --c-text-sub: var(--c-icon);
 }
