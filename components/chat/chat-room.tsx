@@ -1090,6 +1090,9 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
     const [offlineMode, setOfflineMode] = useState(false);
     const [theaterMode, setTheaterMode] = useState(() => kvGet(CHAT_THEATER_MODE_PREFIX + session.id) === "1");
     const [offlineTurns, setOfflineTurns] = useState<ChatOfflineTurn[]>([]);
+    const [guidedRerollTargetMsgId, setGuidedRerollTargetMsgId] = useState<string | null>(null);
+    const [guidedRerollInstruction, setGuidedRerollInstruction] = useState<string>("");
+    const [guidedRerollKeepNarrative, setGuidedRerollKeepNarrative] = useState<boolean>(false);
     const [offlineVisibleCount, setOfflineVisibleCount] = useState(OFFLINE_INITIAL_LOAD);
     const [pendingOfflineUserText, setPendingOfflineUserText] = useState("");
     const [isOfflineGenerating, setIsOfflineGenerating] = useState(false);
@@ -4365,11 +4368,11 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
         }
     };
 
-    const handleRetry = async (msgId: string) => {
+    const handleRetry = async (msgId: string, customGuidance?: string, keepNarrative = false) => {
         const msgIndex = messages.findIndex(m => m.id === msgId);
         if (msgIndex === -1 || messages[msgIndex].role !== "assistant") return;
 
-        const contextMessages = messages.slice(0, msgIndex);
+        const contextMessages = [...messages.slice(0, msgIndex)];
 
         // Delete this message and everything after it
         deleteChatMessagesFrom(msgId);
@@ -4378,6 +4381,31 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
 
         // Cancel any pending follow-up for this session
         cancelFollowUp(session.id);
+
+        const trimmedGuidance = customGuidance?.trim();
+        if (trimmedGuidance) {
+            const guidanceInstruction = `【重演演化指导】：用户对上一轮回复不满意，希望你重新生成本轮回复。指导要求：${trimmedGuidance}。请严格按此要求与你的角色人设重新回应，正文中切勿提及本指导。`;
+            if (keepNarrative) {
+                // 留痕模式：在聊天历史中写入可见的旁白系统气泡
+                const narrMsg = pushChatMessage({
+                    sessionId: session.id,
+                    role: "system",
+                    content: `[重试指导] ${trimmedGuidance}`,
+                    mediaType: "system_instruction",
+                });
+                contextMessages.push(narrMsg);
+                setMessages(prev => [...prev, narrMsg]);
+            } else {
+                // 无痕模式（iMessage 极简）：仅作为单次临时系统引导塞进上下文中生成，不留冗余气泡
+                contextMessages.push({
+                    id: `temp_guidance_${Date.now()}`,
+                    sessionId: session.id,
+                    role: "system",
+                    content: guidanceInstruction,
+                    createdAt: new Date().toISOString(),
+                });
+            }
+        }
 
         await runManagedGeneration({
             history: contextMessages,
@@ -4915,7 +4943,10 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                         <button onClick={() => handleRetractMessage(storedMessageId)} className="ctx-menu-btn">撤回消息</button>
                     )}
                     {m.role === "assistant" && (
-                        <button onClick={() => handleRetry(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger">重试以下</button>
+                        <>
+                            <button onClick={() => { setGuidedRerollTargetMsgId(storedMessageId); setGuidedRerollInstruction(""); setActiveMessageId(null); }} className="ctx-menu-btn text-[#007AFF] font-medium">指导重试</button>
+                            <button onClick={() => handleRetry(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger">重试以下</button>
+                        </>
                     )}
                 </div>
                 <div className="flex">
@@ -6684,6 +6715,130 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                                 className="ui-btn ui-btn-primary"
                                 type="button"
                             >保存</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* iOS / iMessage 风格 · 精致液态毛玻璃指导重试浮窗 */}
+            {guidedRerollTargetMsgId && (
+                <div
+                    className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-[14px] transition-all duration-300 animate-in fade-in"
+                    onClick={() => setGuidedRerollTargetMsgId(null)}
+                >
+                    <div
+                        className="w-full max-w-[390px] rounded-[28px] bg-[var(--c-bg,#ffffff)]/85 dark:bg-[#1c1c1e]/85 backdrop-blur-[24px] border border-white/20 dark:border-white/10 shadow-[0_24px_50px_rgba(0,0,0,0.35)] p-5 text-[var(--c-text)] flex flex-col gap-4 overflow-hidden transition-all duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* 顶栏标题与图标 */}
+                        <div className="flex items-center justify-between pb-1">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-[#007AFF]/15 dark:bg-[#0A84FF]/20 flex items-center justify-center text-[#007AFF] dark:text-[#0A84FF]">
+                                    <span className="text-sm font-semibold">✦</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-[15px] font-semibold tracking-tight text-[var(--c-text)] leading-tight">指导重演</h3>
+                                    <p className="text-[11px] text-[var(--c-text-sub,#8e8e93)] leading-none mt-0.5">引导 TA 调整语气、情绪与回复走势</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setGuidedRerollTargetMsgId(null)}
+                                className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-[var(--c-text-sub,#8e8e93)] hover:opacity-80 active:scale-95 transition-all text-xs"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* 快捷胶囊灵感标签 */}
+                        <div className="flex flex-wrap gap-1.5 py-0.5">
+                            {[
+                                "语气温柔深情一点",
+                                "生硬吃醋，带点傲娇",
+                                "展开细微动作神态描写",
+                                "短促有力，别太啰嗦",
+                                "态度冷淡疏离，故意晾着我",
+                                "反问并试探我的心意",
+                            ].map((tag) => (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => {
+                                        setGuidedRerollInstruction((prev) => (prev ? `${prev}，${tag}` : tag));
+                                    }}
+                                    className="px-2.5 py-1 rounded-full text-[12px] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#007AFF]/10 dark:hover:bg-[#0A84FF]/20 text-[var(--c-text)] hover:text-[#007AFF] dark:hover:text-[#0A84FF] border border-black/5 dark:border-white/5 active:scale-95 transition-all"
+                                >
+                                    {tag}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* 极简 iOS 文本输入域 */}
+                        <div className="relative rounded-[18px] bg-black/[0.03] dark:bg-black/40 border border-black/5 dark:border-white/10 focus-within:border-[#007AFF]/60 focus-within:ring-2 focus-within:ring-[#007AFF]/20 transition-all p-3">
+                            <textarea
+                                autoFocus
+                                rows={3}
+                                value={guidedRerollInstruction}
+                                onChange={(e) => setGuidedRerollInstruction(e.target.value)}
+                                placeholder="输入指导要求（例：心口不一，眼神慌乱地移开……）"
+                                className="w-full bg-transparent text-[13.5px] text-[var(--c-text)] placeholder-[var(--c-text-sub,#8e8e93)]/60 focus:outline-none resize-none leading-relaxed"
+                                onKeyDown={(e) => {
+                                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                                        e.preventDefault();
+                                        if (guidedRerollTargetMsgId) {
+                                            void handleRetry(guidedRerollTargetMsgId, guidedRerollInstruction, guidedRerollKeepNarrative);
+                                            setGuidedRerollTargetMsgId(null);
+                                        }
+                                    }
+                                }}
+                            />
+                            {guidedRerollInstruction && (
+                                <button
+                                    type="button"
+                                    onClick={() => setGuidedRerollInstruction("")}
+                                    className="absolute top-2 right-2 text-[11px] text-[var(--c-text-sub,#8e8e93)] hover:text-[var(--c-text)] px-1.5 py-0.5 rounded-md"
+                                >
+                                    清空
+                                </button>
+                            )}
+                        </div>
+
+                        {/* 留痕旁白极简开关 */}
+                        <div className="flex items-center justify-between px-1">
+                            <span className="text-[12px] text-[var(--c-text-sub,#8e8e93)]">在聊天流中保留指示旁白</span>
+                            <label className="relative inline-flex items-center cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={guidedRerollKeepNarrative}
+                                    onChange={(e) => setGuidedRerollKeepNarrative(e.target.checked)}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-black/10 dark:bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#007AFF] dark:peer-checked:bg-[#0A84FF]" />
+                            </label>
+                        </div>
+
+                        {/* 底部操作胶囊按键 */}
+                        <div className="flex items-center gap-2.5 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => setGuidedRerollTargetMsgId(null)}
+                                className="flex-1 h-11 rounded-[20px] bg-black/5 dark:bg-white/10 hover:bg-black/10 text-[13.5px] font-medium text-[var(--c-text)] active:scale-95 transition-all"
+                            >
+                                取消
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (guidedRerollTargetMsgId) {
+                                        void handleRetry(guidedRerollTargetMsgId, guidedRerollInstruction, guidedRerollKeepNarrative);
+                                        setGuidedRerollTargetMsgId(null);
+                                    }
+                                }}
+                                className="flex-1 h-11 rounded-[20px] bg-gradient-to-r from-[#007AFF] to-[#0055d4] hover:brightness-105 active:scale-95 text-white text-[13.5px] font-semibold tracking-wide shadow-[0_4px_16px_rgba(0,122,255,0.35)] transition-all flex items-center justify-center gap-1.5"
+                            >
+                                <span>重新演化</span>
+                                <span className="text-xs opacity-75">➔</span>
+                            </button>
                         </div>
                     </div>
                 </div>
