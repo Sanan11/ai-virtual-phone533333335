@@ -6603,6 +6603,9 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
             {showMusicPicker && (
                 <ListenTogetherPickerModal
                     characterName={character?.name || "对方"}
+                    characterAvatar={character?.avatar}
+                    userName={userIdentity?.name || "我"}
+                    userAvatar={userIdentity?.avatar}
                     onSelectTrack={async (track) => {
                         setShowMusicPicker(false);
                         // 1. 在私聊中发送音乐分享卡片并沉淀心境
