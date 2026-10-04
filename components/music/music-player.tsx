@@ -17,7 +17,7 @@ import {
 import MusicCommentsPage from "./music-comments";
 import MusicArtistPage from "./music-artist";
 import { loadMusicBg, playerBgStyle, MUSIC_BG_EVENT, type MusicBgConfig } from "@/lib/music-bg";
-import { loadChatContacts, pushChatMessage, createOrGetSession } from "@/lib/chat-storage";
+import { loadChatContacts, pushChatMessage, createOrGetSession, loadChatSessions, saveChatSessions } from "@/lib/chat-storage";
 import { loadCharacters } from "@/lib/character-storage";
 import type { Character } from "@/lib/character-types";
 import { ListenTogetherPickerModal } from "@/components/chat/listen-together-picker-modal";
@@ -287,6 +287,25 @@ export default function MusicPlayer() {
     const [playlists, setPlaylists] = useState<NeteasePlaylist[]>([]);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
     const [addResult, setAddResult] = useState<{ ok: boolean; message: string } | null>(null);
+    const [activeTogetherChar, setActiveTogetherChar] = useState<Character | null>(null);
+
+    // 检查并同步当前正在一起听的角色
+    useEffect(() => {
+        const checkTogether = () => {
+            const sessions = loadChatSessions();
+            const activeSess = sessions.find(s => s.listenTogetherTrack && (!track || s.listenTogetherTrack.id === track.id || s.listenTogetherTrack.name === track.title));
+            if (activeSess) {
+                const allChars = loadCharacters();
+                const found = allChars.find(c => c.id === activeSess.contactId);
+                setActiveTogetherChar(found || null);
+            } else {
+                setActiveTogetherChar(null);
+            }
+        };
+        checkTogether();
+        window.addEventListener("chat-session-updated", checkTogether);
+        return () => window.removeEventListener("chat-session-updated", checkTogether);
+    }, [track?.id, track?.title]);
 
     // Sync liked state with current track
     useEffect(() => {
@@ -547,6 +566,25 @@ export default function MusicPlayer() {
                     </div>
                 ) : (
                     <div className="mp-cover-area" onClick={() => setView("lyrics")}>
+                        {/* 若处于一起听状态，在播放画面中央顶部展示同听胶囊动效 */}
+                        {activeTogetherChar && (
+                            <div
+                                onClick={(e) => { e.stopPropagation(); setShowListenTogether(true); }}
+                                className="mb-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-pink-500/30 text-white shadow-lg cursor-pointer hover:bg-black/60 active:scale-95 transition-all z-10"
+                            >
+                                <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-pink-400 shrink-0">
+                                    {activeTogetherChar.avatar ? (
+                                        <img src={activeTogetherChar.avatar} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-pink-600 text-[10px] flex items-center justify-center font-bold">{activeTogetherChar.name.slice(0, 1)}</div>
+                                    )}
+                                </div>
+                                <span className="text-[11px] font-medium text-pink-200 truncate max-w-[120px]">
+                                    与 {activeTogetherChar.name} 一起听
+                                </span>
+                                <span className="w-2 h-2 rounded-full bg-pink-500 animate-ping shrink-0" />
+                            </div>
+                        )}
                         <div className="mp-cover" {...(player.isPlaying ? {} : { "data-paused": "" })}>
                             {track.coverUrl ? (
                                 <img src={track.coverUrl} alt="" />
@@ -859,9 +897,8 @@ export default function MusicPlayer() {
                                                 <div className="w-full h-full flex items-center justify-center text-xs">{c.name.slice(0, 1)}</div>
                                             )}
                                         </div>
-                                        <div className="flex flex-col flex-1 truncate">
+                                        <div className="flex flex-col flex-1 truncate justify-center">
                                             <span className="text-xs font-semibold truncate">{c.name}</span>
-                                            <span className="text-[10px] text-[var(--c-text-sub)] truncate">{c.personality || "点击邀请 TA 同步听歌"}</span>
                                         </div>
                                         <button className="px-2.5 py-1 rounded-full bg-[var(--c-primary,#e53e3e)] text-white text-[11px] font-semibold">
                                             邀请
@@ -943,11 +980,7 @@ export default function MusicPlayer() {
                                             label: track.title,
                                         },
                                     });
-                                    pushChatMessage({
-                                        sessionId: sess.id,
-                                        role: "user",
-                                        content: `你好呀，雷达偶遇！原来你也喜欢听「${track.title}」✨`,
-                                    });
+                                    // 雷达偶遇直接分享音乐卡片，不发送冗余问候文字
                                     showMusicToast(`已和 ${stranger.name} 建立连接！`);
                                 }}
                                 className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-[var(--c-primary,#e53e3e)] text-white text-xs font-bold shadow-lg hover:brightness-105 active:scale-95 transition-all flex items-center justify-center gap-1"
@@ -970,7 +1003,8 @@ export default function MusicPlayer() {
             {/* 双人一起听与美化弹窗 */}
             {showListenTogether && (
                 <ListenTogetherPickerModal
-                    characterName="沈清洲"
+                    characterName={activeTogetherChar?.name || "TA"}
+                    characterAvatar={activeTogetherChar?.avatar}
                     onClose={() => setShowListenTogether(false)}
                     onSelectTrack={(t) => {
                         setShowListenTogether(false);
