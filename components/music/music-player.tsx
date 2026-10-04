@@ -538,7 +538,26 @@ export default function MusicPlayer() {
                         )}
                     </div>
                 ) : playerStyle === "vinyl" ? (
-                    <div className="music-player-vinyl-area" onClick={() => setView("lyrics")}>
+                    <div className="music-player-vinyl-area flex flex-col items-center" onClick={() => setView("lyrics")}>
+                        {/* 黑胶模式下顶部同步展示同听状态胶囊 */}
+                        {activeTogetherChar && (
+                            <div
+                                onClick={(e) => { e.stopPropagation(); setShowListenTogether(true); }}
+                                className="mb-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-pink-500/40 text-white shadow-xl cursor-pointer hover:bg-black/80 active:scale-95 transition-all z-20"
+                            >
+                                <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-pink-400 shrink-0">
+                                    {activeTogetherChar.avatar ? (
+                                        <img src={activeTogetherChar.avatar} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-pink-600 text-[10px] flex items-center justify-center font-bold">{activeTogetherChar.name.slice(0, 1)}</div>
+                                    )}
+                                </div>
+                                <span className="text-[11px] font-medium text-pink-200 truncate max-w-[120px]">
+                                    与 {activeTogetherChar.name} 一起听
+                                </span>
+                                <span className="w-2 h-2 rounded-full bg-pink-500 animate-ping shrink-0" />
+                            </div>
+                        )}
                         <div className="music-player-vinyl-glow" />
                         <div className="music-player-vinyl" {...(player.isPlaying ? { "data-spinning": "" } : {})}>
                             <div className="music-player-vinyl-groove music-player-vinyl-groove-1" />
@@ -693,14 +712,24 @@ export default function MusicPlayer() {
                     </svg>
                     <span>{commentTotal > 0 ? formatCount(commentTotal) : "评论"}</span>
                 </button>
-                <button className="mp-social-btn" onClick={() => setShowInviteModal(true)} title="邀请角色一起听歌">
+                <button
+                    className={`mp-social-btn ${activeTogetherChar ? "text-pink-400 font-semibold" : ""}`}
+                    onClick={() => {
+                        if (activeTogetherChar) {
+                            setShowListenTogether(true);
+                        } else {
+                            setShowInviteModal(true);
+                        }
+                    }}
+                    title={activeTogetherChar ? `正在与 ${activeTogetherChar.name} 一起听` : "邀请角色一起听歌"}
+                >
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                         <circle cx="9" cy="7" r="4" />
                         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
-                    <span>一起听</span>
+                    <span>{activeTogetherChar ? "同听中" : "一起听"}</span>
                 </button>
                 <button className="mp-social-btn" onClick={openShareViaChat}>
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -809,9 +838,9 @@ export default function MusicPlayer() {
 
             {/* Invite Character Together Overlay */}
             {showInviteModal && (
-                <div className="modal-overlay z-50" onClick={() => setShowInviteModal(false)}>
+                <div className="modal-overlay z-[160] fixed inset-0 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in" onClick={() => setShowInviteModal(false)}>
                     <div
-                        className="modal-dialog max-w-sm w-full mx-4 max-h-[75vh] flex flex-col p-0 rounded-2xl bg-[var(--c-card,#1e1e1e)] border border-[var(--c-border,#333)] shadow-2xl overflow-hidden select-none text-[var(--c-text-title,#fff)]"
+                        className="relative max-w-xs w-full max-h-[75vh] flex flex-col p-0 rounded-3xl bg-[#1c1a24]/95 border border-white/15 shadow-2xl overflow-hidden select-none text-white backdrop-blur-xl"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-3.5 border-b border-[var(--c-border,#333)] flex items-center justify-between">
