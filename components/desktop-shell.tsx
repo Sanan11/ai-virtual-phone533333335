@@ -2393,10 +2393,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
   const [activeChatSession, setActiveChatSession] = useState<ChatSession | null>(null);
   const [customAppLaunchContext, setCustomAppLaunchContext] = useState<CustomAppLaunchState | null>(null);
   const [appMarketLaunchContext, setAppMarketLaunchContext] = useState<Record<string, unknown> | null>(null);
-  const [vnLaunchContext, setVnLaunchContext] = useState<{
-    characterId?: string | null;
-    dateInfo?: { location?: string; time?: string; matter?: string } | null;
-  } | null>(null);
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
