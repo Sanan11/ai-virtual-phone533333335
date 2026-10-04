@@ -16,6 +16,7 @@ import MusicApp from "@/components/music/music-app";
 import MusicPlayer from "@/components/music/music-player";
 import MusicFloat from "@/components/music/music-float";
 import MiniAppWindow from "@/components/music/mini-app-window";
+import TogetherListenCard from "@/components/music/together-listen-card";
 import { PhoneCalendarApp } from "@/components/calendar-app";
 import { PhoneQaApp } from "@/components/phone-qa-app";
 import { ChatPluginPageBoundary } from "@/components/chat/chat-plugin-page-boundary";
@@ -617,7 +618,7 @@ function StatusClock() {
   return <span className="status-time">{label}</span>;
 }
 
-function StatusDynamicIsland({ onOpenMusicTogether }: { onOpenMusicTogether?: () => void }) {
+function StatusDynamicIsland({ onOpenMusicTogether, onOpenTogetherCard }: { onOpenMusicTogether?: () => void; onOpenTogetherCard?: () => void }) {
   const player = useMusicControlsOptional();
   const [togetherChar, setTogetherChar] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
 
@@ -651,8 +652,12 @@ function StatusDynamicIsland({ onOpenMusicTogether }: { onOpenMusicTogether?: ()
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (togetherChar && onOpenMusicTogether) {
-      onOpenMusicTogether();
+    if (togetherChar) {
+      if (onOpenTogetherCard) {
+        onOpenTogetherCard();
+      } else if (onOpenMusicTogether) {
+        onOpenMusicTogether();
+      }
     } else if (player) {
       player.openFullPlayer();
     }
@@ -1191,6 +1196,8 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   );
   const [savedTheme, setSavedTheme] = useState<ThemeProfile>(() => initialThemeProfile ?? readInitialThemeProfile());
   const [draftTheme, setDraftTheme] = useState<ThemeProfile>(() => initialThemeProfile ?? readInitialThemeProfile());
+  const [showIslandTogetherCard, setShowIslandTogetherCard] = useState(false);
+  const [showIslandTogetherModal, setShowIslandTogetherModal] = useState(false);
   useEffect(() => {
     activeAppRef.current = activeApp;
   }, [activeApp]);
@@ -4273,7 +4280,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
 
               <header className="phone-status-bar">
                 <StatusClock />
-                <StatusDynamicIsland onOpenMusicTogether={() => setShowIslandTogetherModal(true)} />
+                <StatusDynamicIsland
+                  onOpenTogetherCard={() => setShowIslandTogetherCard(true)}
+                  onOpenMusicTogether={() => setShowIslandTogetherModal(true)}
+                />
                 <div className="status-right" aria-hidden>
                   <svg viewBox="0 0 72 51" className="status-signal" fill="currentColor">
                     <path d="M11.6,41.9c0,1.4,0,2.8,0,4.3c0,2.3-1.4,3.7-3.6,3.8c-1.5,0.1-3,0.1-4.4,0c-1.9-0.1-3.2-1.2-3.4-3c-0.3-3.4-0.2-6.8,0-10.1c0.1-1.8,1.5-3,3.3-3.1c1.5-0.1,3-0.1,4.4,0c2.2,0.1,3.6,1.5,3.7,3.8C11.6,39,11.6,40.5,11.6,41.9z" />
@@ -5138,6 +5148,13 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                   clone keeps theme variables + glass effect selectors
                   (.phone-shell[data-icon-effect] etc.); follows pointer via ref */}
               <div ref={ghostRef} className="drag-ghost" />
+
+              {/* 灵动岛同听展开卡片：点击灵动岛后从正下方展开，自带 CSS 美化、导入/导出与重置管理 */}
+              <TogetherListenCard
+                open={showIslandTogetherCard}
+                onClose={() => setShowIslandTogetherCard(false)}
+                onOpenTogether={() => setShowIslandTogetherModal(true)}
+              />
             </div>
           </div>
         </div>
