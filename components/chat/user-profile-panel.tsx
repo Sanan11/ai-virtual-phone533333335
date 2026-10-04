@@ -489,39 +489,82 @@ export function UserProfilePanel({ onClose, className }: UserProfilePanelProps) 
    Chat CSS Editor (sub-page)
    ══════════════════════════════════════════ */
 function ChatCSSEditor({ onBack }: { onBack: () => void }) {
-    const [css, setCss] = useState(() => kvGet("chat-app-custom-css") || "");
+    const [activeTarget, setActiveTarget] = useState<"messages" | "moments" | "app">("messages");
+    const [chatListCss, setChatListCss] = useState(() => kvGet("chat-list-custom-css") || "");
+    const [momentsCss, setMomentsCss] = useState(() => kvGet("moments-feed-custom-css") || "");
+    const [appCss, setAppCss] = useState(() => kvGet("chat-app-custom-css") || "");
+
+    const currentCss = activeTarget === "messages" ? chatListCss : activeTarget === "moments" ? momentsCss : appCss;
+    const setCurrentCss = (val: string) => {
+        if (activeTarget === "messages") setChatListCss(val);
+        else if (activeTarget === "moments") setMomentsCss(val);
+        else setAppCss(val);
+    };
+
+    const schemeTarget = activeTarget === "messages" ? "chat_list" : activeTarget === "moments" ? "moments_feed" : "chat_app";
+    const storageKey = activeTarget === "messages" ? "chat-list-custom-css" : activeTarget === "moments" ? "moments-feed-custom-css" : "chat-app-custom-css";
+    const eventName = activeTarget === "messages" ? "chat-list-css-updated" : activeTarget === "moments" ? "moments-feed-css-updated" : "chat-app-css-updated";
 
     const handleApply = () => {
-        const trimmed = css.trim();
-        if (trimmed) kvSet("chat-app-custom-css", trimmed);
-        else kvRemove("chat-app-custom-css");
+        const trimmed = currentCss.trim();
+        if (trimmed) kvSet(storageKey, trimmed);
+        else kvRemove(storageKey);
+        window.dispatchEvent(new CustomEvent(eventName));
         window.dispatchEvent(new CustomEvent("chat-app-css-updated"));
     };
 
     const handleClear = () => {
-        setCss("");
-        kvRemove("chat-app-custom-css");
+        setCurrentCss("");
+        kvRemove(storageKey);
+        window.dispatchEvent(new CustomEvent(eventName));
         window.dispatchEvent(new CustomEvent("chat-app-css-updated"));
     };
 
     return (
-        <PageShell title="自定义 CSS" onBack={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: false })); onBack(); }}>
+        <PageShell title="外观与美化 CSS" onBack={() => { window.dispatchEvent(new CustomEvent("chat-hide-tabbar", { detail: false })); onBack(); }}>
             <div className="p-4 flex flex-col gap-3 flex-1">
-                <div className="ts-12 text-[var(--c-text)] opacity-70">
-                    在此输入 CSS 自定义聊天页面样式（联系人列表、朋友圈、聊天室默认样式等）。单独聊天室的 CSS 优先级更高。
+                {/* 顶部三段式切换标签 */}
+                <div className="flex rounded-xl p-1 bg-[var(--c-input)] gap-1 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTarget("messages")}
+                        className={`flex-1 py-1.5 text-[12px] font-semibold rounded-lg transition-all ${activeTarget === "messages" ? "bg-[var(--c-panel,#fff)] text-[var(--c-text-title)] shadow-sm" : "text-[var(--c-text-sub,#999)]"}`}
+                    >
+                        💬 聊天会话列表
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTarget("moments")}
+                        className={`flex-1 py-1.5 text-[12px] font-semibold rounded-lg transition-all ${activeTarget === "moments" ? "bg-[var(--c-panel,#fff)] text-[var(--c-text-title)] shadow-sm" : "text-[var(--c-text-sub,#999)]"}`}
+                    >
+                        🌸 朋友圈动态
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTarget("app")}
+                        className={`flex-1 py-1.5 text-[12px] font-semibold rounded-lg transition-all ${activeTarget === "app" ? "bg-[var(--c-panel,#fff)] text-[var(--c-text-title)] shadow-sm" : "text-[var(--c-text-sub,#999)]"}`}
+                    >
+                        🌐 全局通用
+                    </button>
                 </div>
+
+                <div className="ts-12 text-[var(--c-text)] opacity-70 leading-relaxed">
+                    {activeTarget === "messages" && "单独美化消息列表条目（.chat-messages-page、.minimal-list-item、未读角标等），完全独立不影响朋友圈。"}
+                    {activeTarget === "moments" && "单独美化朋友圈动态卡片（.moments-feed-page、.moment-card、点赞评论区等），完全独立不影响聊天列表。"}
+                    {activeTarget === "app" && "聊天应用兜底全局 CSS（底栏、顶栏公共区域等）。单独页面的 CSS 优先级更高。"}
+                </div>
+
                 <textarea
-                    value={css}
-                    onChange={(e) => setCss(e.target.value)}
-                    placeholder="/* 输入 CSS 自定义聊天页面样式... */"
+                    value={currentCss}
+                    onChange={(e) => setCurrentCss(e.target.value)}
+                    placeholder={`/* 在此输入针对【${activeTarget === "messages" ? "聊天列表" : activeTarget === "moments" ? "朋友圈" : "全局"}】的专属美化 CSS... */`}
                     className="ui-textarea font-mono ts-13 leading-relaxed flex-1"
                     style={{ minHeight: 280, resize: "none", scrollbarWidth: "none" }}
                 />
                 <div className="flex gap-2 items-center">
-                    <CSSSchemeBar target="chat_app" currentCSS={css} onLoad={setCss} />
-                    <button type="button" className="ui-btn ui-btn-outline flex-1" onClick={() => setCss(CHAT_APP_CSS_EXAMPLE)}>示例</button>
+                    <CSSSchemeBar target={schemeTarget} currentCSS={currentCss} onLoad={setCurrentCss} />
                     <button type="button" className="ui-btn ui-btn-outline flex-1" onClick={handleClear}>清除</button>
-                    <button type="button" className="ui-btn ui-btn-soft-action flex-1" onClick={handleApply}>应用</button>
+                    <button type="button" className="ui-btn ui-btn-soft-action flex-1" onClick={handleApply}>保存应用</button>
                 </div>
             </div>
         </PageShell>

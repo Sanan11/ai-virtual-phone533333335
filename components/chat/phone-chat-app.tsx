@@ -36,6 +36,13 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
     const [chatAppCSS, setChatAppCSS] = useState(() =>
         typeof window !== "undefined" ? kvGet("chat-app-custom-css") || "" : ""
     );
+    // 独立解耦美化：消息列表专属 CSS & 朋友圈专属 CSS
+    const [chatListCSS, setChatListCSS] = useState(() =>
+        typeof window !== "undefined" ? kvGet("chat-list-custom-css") || "" : ""
+    );
+    const [momentsFeedCSS, setMomentsFeedCSS] = useState(() =>
+        typeof window !== "undefined" ? kvGet("moments-feed-custom-css") || "" : ""
+    );
     // Cache all visited sessions so their ChatRoom stays mounted (hidden)
     const [visitedSessions, setVisitedSessions] = useState<Map<string, ChatSession>>(new Map());
     const [dbReady, setDbReady] = useState(false);
@@ -218,9 +225,19 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
 
     // Listen for CSS updates from settings panel
     useEffect(() => {
-        const onCSSUpdate = () => setChatAppCSS(kvGet("chat-app-custom-css") || "");
+        const onCSSUpdate = () => {
+            setChatAppCSS(kvGet("chat-app-custom-css") || "");
+            setChatListCSS(kvGet("chat-list-custom-css") || "");
+            setMomentsFeedCSS(kvGet("moments-feed-custom-css") || "");
+        };
         window.addEventListener("chat-app-css-updated", onCSSUpdate);
-        return () => window.removeEventListener("chat-app-css-updated", onCSSUpdate);
+        window.addEventListener("chat-list-css-updated", onCSSUpdate);
+        window.addEventListener("moments-feed-css-updated", onCSSUpdate);
+        return () => {
+            window.removeEventListener("chat-app-css-updated", onCSSUpdate);
+            window.removeEventListener("chat-list-css-updated", onCSSUpdate);
+            window.removeEventListener("moments-feed-css-updated", onCSSUpdate);
+        };
     }, []);
 
     // Listen for tab bar hide/show from sub-pages (e.g. CSS editor)
@@ -241,6 +258,9 @@ export const PhoneChatApp = memo(function PhoneChatApp({ onClose, initialSession
         >
             {/* Chat app-level custom CSS (lower priority than per-session CSS) */}
             {chatAppCSS && <SessionCustomCSS css={chatAppCSS} scope=".chat-app" />}
+            {/* 独立解耦美化：仅对聊天列表 / 朋友圈隔离生效 */}
+            {chatListCSS && <SessionCustomCSS css={chatListCSS} scope=".chat-messages-page" />}
+            {momentsFeedCSS && <SessionCustomCSS css={momentsFeedCSS} scope=".moments-feed-page" />}
             {/* The Main Content Area */}
             <div className="chat-main-content relative flex-1 flex flex-col overflow-hidden" {...(activeSession || activeMascot ? { "data-covered-by-room": "" } : {})}>
                 {activeTab === "messages" && <ChatMessageList onCloseApp={onClose} activeSession={activeSession} onSelectSession={(session) => { setActiveMascot(false); setActiveSession(session); }} onSelectMascot={handleSelectMascot} />}

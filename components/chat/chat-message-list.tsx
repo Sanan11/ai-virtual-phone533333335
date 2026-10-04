@@ -179,7 +179,7 @@ export function ChatMessageList({ onCloseApp, activeSession, onSelectSession, on
     };
 
     return (
-        <div className="relative flex-1 h-full">
+        <div className="relative flex-1 h-full chat-messages-page" data-chat-view="messages">
             <PageShell
                 leftAction={
                     <div className="flex items-center min-w-max">
