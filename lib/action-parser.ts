@@ -40,7 +40,7 @@ export type ActionContext = {
 
 // ── Parser ──
 
-const ACTION_TAGS = ["朋友圈", "群消息", "评论", "回复", "消息", "私信", "撤回", "改备注", "更新关系"] as const;
+const ACTION_TAGS = ["朋友圈", "群消息", "评论", "回复", "消息", "私信", "撤回", "改备注", "更新关系", "切歌", "播放音乐"] as const;
 
 function normalizeActionQuotes(text: string): string {
     return text.replace(/[\u201C\u201D\u2018\u2019\u300C\u300D]/g, "\"");
@@ -178,7 +178,7 @@ export function parseActionTags(text: string): {
  */
 const KNOWN_ACTION_TAGS = [
     // 中文方括号格式
-    "朋友圈", "评论", "回复", "消息", "群消息", "私信", "撤回", "改备注", "更新关系",
+    "朋友圈", "评论", "回复", "消息", "群消息", "私信", "撤回", "改备注", "更新关系", "切歌", "播放音乐",
     // XML 格式 (AI 偶尔幻觉输出)
     "action_chat_message", "action_moments_post",
     "action_comment", "action_reply",
@@ -255,6 +255,10 @@ export async function dispatchActions(
                     break;
                 case "更新关系":
                     dispatchUpdateRelationship(action, effectiveCtx);
+                    break;
+                case "切歌":
+                case "播放音乐":
+                    dispatchCharacterSwitchMusic(action, effectiveCtx);
                     break;
             }
         } catch (err) {
@@ -538,6 +542,17 @@ function dispatchUpdateRelationship(action: ActionTag, context: ActionContext): 
             window.dispatchEvent(new CustomEvent("chat-session-updated", { detail: { sessionId } }));
         }
     }
+}
+
+function dispatchCharacterSwitchMusic(action: ActionTag, context: ActionContext): void {
+    const query = action.content.trim();
+    if (!query) return;
+    void import("./music-control-bridge").then(mod => {
+        const bridge = mod.getMusicControlBridge();
+        if (bridge) {
+            void bridge.playByQuery(query);
+        }
+    });
 }
 
 // ── Helpers ──

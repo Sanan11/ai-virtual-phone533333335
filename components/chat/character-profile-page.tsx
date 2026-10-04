@@ -5,7 +5,7 @@ import { Character } from "@/lib/character-types";
 import { ChatSession, loadChatSessions, saveChatSessions } from "@/lib/chat-storage";
 import { loadMomentPosts, loadMomentComments, addMomentComment, type MomentPost, type MomentComment } from "@/lib/moments-storage";
 import { resolveUserIdentity } from "@/lib/settings-storage";
-import { ChevronLeft, MessageSquare, Phone, Heart, Sparkles, Send, Image as ImageIcon, Info, Calendar, ShieldCheck, Share2 } from "lucide-react";
+import { ChevronLeft, MessageSquare, Phone, Heart, Sparkles, Send, Image as ImageIcon, Info, Calendar, ShieldCheck, Share2, Music, Play } from "lucide-react";
 import { ChatFallbackAvatar } from "./chat-fallback-avatar";
 
 interface CharacterProfilePageProps {
@@ -15,6 +15,7 @@ interface CharacterProfilePageProps {
     onStartChat?: () => void;
     onVoiceCall?: () => void;
     onVideoCall?: () => void;
+    onPlayMusic?: (query: string) => void;
 }
 
 export function CharacterProfilePage({
@@ -24,8 +25,9 @@ export function CharacterProfilePage({
     onStartChat,
     onVoiceCall,
     onVideoCall,
+    onPlayMusic,
 }: CharacterProfilePageProps) {
-    const [activeTab, setActiveTab] = useState<"posts" | "media" | "about">("posts");
+    const [activeTab, setActiveTab] = useState<"posts" | "media" | "music" | "about">("posts");
     const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -216,6 +218,17 @@ export function CharacterProfilePage({
                 <button
                     type="button"
                     className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+                        activeTab === "music"
+                            ? "border-[var(--c-primary)] text-[var(--c-primary)]"
+                            : "border-transparent text-[var(--c-text-sub)] hover:text-[var(--c-text-title)]"
+                    }`}
+                    onClick={() => setActiveTab("music")}
+                >
+                    歌单
+                </button>
+                <button
+                    type="button"
+                    className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                         activeTab === "about"
                             ? "border-[var(--c-primary)] text-[var(--c-primary)]"
                             : "border-transparent text-[var(--c-text-sub)] hover:text-[var(--c-text-title)]"
@@ -334,6 +347,45 @@ export function CharacterProfilePage({
                             ))}
                         </div>
                     )
+                )}
+
+                {activeTab === "music" && (
+                    <div className="flex flex-col gap-3">
+                        <div className="p-3 rounded-2xl bg-gradient-to-r from-[var(--c-primary)]/10 to-transparent border border-[var(--c-border)] flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[var(--c-primary)]/20 flex items-center justify-center text-[var(--c-primary)] shrink-0">
+                                <Music size={18} />
+                            </div>
+                            <div className="flex flex-col flex-1">
+                                <span className="text-sm font-semibold text-[var(--c-text-title)]">{character.name} 的私藏歌单</span>
+                                <span className="text-[10px] text-[var(--c-text-sub)]">点击即可与 TA 一起听</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            {[
+                                { title: "Drown", artist: "Bring Me The Horizon", tag: "摇滚" },
+                                { title: "Starboy", artist: "The Weeknd", tag: "R&B" },
+                                { title: "夜曲", artist: "周杰伦", tag: "流行" },
+                                { title: "Merry Christmas Mr. Lawrence", artist: "坂本龙一", tag: "纯音乐" },
+                            ].map((song, idx) => (
+                                <div 
+                                    key={idx} 
+                                    className="flex items-center justify-between p-3 rounded-xl bg-[var(--c-card)] border border-[var(--c-border)] shadow-xs hover:border-[var(--c-primary)]/50 transition-colors cursor-pointer group" 
+                                    onClick={() => onPlayMusic?.(`${song.title} ${song.artist}`)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-[var(--c-input)] flex items-center justify-center text-[var(--c-text-sub)] group-hover:text-[var(--c-primary)] transition-colors">
+                                            <Play size={14} className="ml-0.5" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-medium text-[var(--c-text-title)]">{song.title}</span>
+                                            <span className="text-[10px] text-[var(--c-text-sub)]">{song.artist}</span>
+                                        </div>
+                                    </div>
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--c-input)] text-[var(--c-text-sub)]">{song.tag}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 )}
 
                 {activeTab === "about" && (
