@@ -1099,7 +1099,6 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
     const [theaterMode, setTheaterMode] = useState(() => kvGet(CHAT_THEATER_MODE_PREFIX + session.id) === "1");
     const [offlineTurns, setOfflineTurns] = useState<ChatOfflineTurn[]>([]);
     const [guidedRerollTargetMsgId, setGuidedRerollTargetMsgId] = useState<string | null>(null);
-    const [showCharacterProfile, setShowCharacterProfile] = useState(false);
     const [guidedRerollInstruction, setGuidedRerollInstruction] = useState<string>("");
     const [guidedRerollKeepNarrative, setGuidedRerollKeepNarrative] = useState<boolean>(false);
     const [offlineVisibleCount, setOfflineVisibleCount] = useState(OFFLINE_INITIAL_LOAD);
@@ -2623,46 +2622,6 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
     };
 
     // AI auto-play: search & play a song by title/artist when AI recommends music
-    const playMusicByQuery = async (title: string, artist?: string) => {
-        const musicBridge = getMusicControlBridge();
-        if (!musicBridge) { 
-            showChatToast("音乐播放器未就绪"); 
-            return false; 
-        }
-        showPersistentChatToast("加载音乐中...");
-        try {
-            const found = await findPlayableMatch(title, artist);
-            if (!found) {
-                showChatToast("没有找到该音乐哦~");
-                return false;
-            }
-            const { result: match, playUrl } = found;
-            if (match.source === "local" && match.localTrack) {
-                await musicBridge.playTrack(match.localTrack);
-            } else if (match.source === "netease" && match.neteaseResult && playUrl) {
-                const r = match.neteaseResult;
-                const detail = await getNeteaseSongDetail(r.id);
-                const lyrics = await getNeteaseLyrics(r.id);
-                await musicBridge.playTrack({
-                    id: `netease_${r.id}`,
-                    title: detail?.name || r.name,
-                    artist: detail?.artists || r.artists,
-                    duration: r.duration / 1000,
-                    coverUrl: detail?.coverUrl,
-                    lyrics,
-                    liked: false,
-                    addedAt: new Date().toISOString(),
-                });
-            }
-            clearChatToast();
-            return true;
-        } catch (err) {
-            console.warn("[PlayMusic] Failed:", err);
-            showChatToast("播放失败，请稍后重试");
-            return false;
-        }
-    };
-
     const autoPlayMusic = async (title: string, charName: string, artist?: string) => {
         const musicBridge = getMusicControlBridge();
         if (!musicBridge) { console.warn("[AutoPlay] MusicPlayer not available"); return; }
@@ -4449,12 +4408,6 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
             errorPrefix: "重试失败",
             onDecline: triggerReply,
         });
-    };
-
-    const handleRetractMessage = (msgId: string) => {
-        retractChatMessage(msgId);
-        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isRetracted: true } : m));
-        setActiveMessageId(null);
     };
 
     const handleEditMessageStart = (msg: ChatMessage) => {

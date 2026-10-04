@@ -760,7 +760,6 @@ export function assemblePromptPayload(input: AssemblerInput): LLMMessage[] {
                 marker: "character_user_bond",
             });
         }
-        const beforeHistoryDepth = resolveBeforeHistoryDepth(history.length, input.unifiedRecentItems?.length);
         const absoluteEntries: { prompt: Prompt; content: string; promptIndex: number }[] = [];
 
         for (let promptIndex = 0; promptIndex < processingOrder.length; promptIndex += 1) {

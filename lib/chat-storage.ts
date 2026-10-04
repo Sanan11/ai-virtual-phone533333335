@@ -1607,24 +1607,6 @@ export function editChatMessage(messageId: string, newContent: string) {
     }
 }
 
-export function retractChatMessage(messageId: string) {
-    const msgIdx = _messagesCache.findIndex(m => m.id === messageId);
-    if (msgIdx !== -1) {
-        _messagesCache[msgIdx] = { ..._messagesCache[msgIdx], isRetracted: true };
-        dbPutMessage(_messagesCache[msgIdx]);
-
-        const sessionId = _messagesCache[msgIdx].sessionId;
-        const lastMsg = getLastVisibleSessionMessage(sessionId);
-
-        const sessions = loadChatSessions();
-        const sessIdx = sessions.findIndex(s => s.id === sessionId);
-        if (sessIdx !== -1 && lastMsg && sessions[sessIdx].lastMessageId === lastMsg.id) {
-            sessions[sessIdx].lastMessagePreview = "撤回了一条消息";
-            saveChatSessions(sessions);
-        }
-    }
-}
-
 export function clearChatSessionMessages(sessionId: string) {
     const deletedMessages = _messagesCache.filter(m => m.sessionId === sessionId);
     _messagesCache = _messagesCache.filter(m => m.sessionId !== sessionId);
