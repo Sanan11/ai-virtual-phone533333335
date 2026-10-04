@@ -36,6 +36,7 @@ import { CustomAppRunner } from "@/components/app-market/custom-app-runner";
 import { CustomAppForegroundBoundary } from "@/components/app-market/custom-app-failure";
 
 import { ChatSettingsPanel } from "./chat-settings-panel";
+import { CharacterProfilePage } from "./character-profile-page";
 import { VoiceCallScreen } from "./voice-call-screen";
 import { VideoCallScreen } from "./video-call-screen";
 import { GroupCallScreen } from "./group-call-screen";
@@ -1124,6 +1125,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
     const [customPlusActions, setCustomPlusActions] = useState<RegisteredCustomAppChatPlusAction[]>(() => loadCustomAppChatPlusActions());
     const [activeCustomChatPlus, setActiveCustomChatPlus] = useState<ActiveCustomChatPlus | null>(null);
     const [showSettings, setShowSettings] = useState(false);
+    const [showCharacterProfile, setShowCharacterProfile] = useState(false);
     const [showVoiceCall, setShowVoiceCall] = useState(false);
     const [showVideoCall, setShowVideoCall] = useState(false);
     const [callMinimized, setCallMinimized] = useState(false);
@@ -5467,7 +5469,15 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                     <button className="page-back-btn" type="button" onClick={onBack} aria-label="返回">
                         <ChevronLeft size={24} strokeWidth={1.5} />
                     </button>
-                    <span className="page-title" style={{ position: 'relative' }}>
+                    <span
+                        className={`page-title ${!session.isGroup && character ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                        style={{ position: 'relative' }}
+                        onClick={() => {
+                            if (!session.isGroup && character) {
+                                setShowCharacterProfile(true);
+                            }
+                        }}
+                    >
                         {offlineMode ? "线下 · " : ""}
                         {session.isGroup
                             ? `${session.groupName || "群聊"}(${(session.participantIds?.length || 0) + (session.isSpectator ? 0 : 1)})`
@@ -6917,6 +6927,26 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                     onMinimize={() => setCallMinimized(true)}
                     onRestore={() => setCallMinimized(false)}
                     onEnd={() => returnFromCall(() => setShowVideoCall(false))}
+                />
+            )}
+
+            {/* 角色个人主页（Threads / X 混合轻奢风格） */}
+            {showCharacterProfile && character && (
+                <CharacterProfilePage
+                    character={character}
+                    session={session}
+                    onBack={() => setShowCharacterProfile(false)}
+                    onStartChat={() => setShowCharacterProfile(false)}
+                    onVoiceCall={() => {
+                        setShowCharacterProfile(false);
+                        setCallInitiator("user");
+                        setShowVoiceCall(true);
+                    }}
+                    onVideoCall={() => {
+                        setShowCharacterProfile(false);
+                        setCallInitiator("user");
+                        setShowVideoCall(true);
+                    }}
                 />
             )}
 
