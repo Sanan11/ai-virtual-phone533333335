@@ -20,6 +20,7 @@ import { loadMusicBg, playerBgStyle, MUSIC_BG_EVENT, type MusicBgConfig } from "
 import { loadChatContacts, pushChatMessage, createOrGetSession } from "@/lib/chat-storage";
 import { loadCharacters } from "@/lib/character-storage";
 import type { Character } from "@/lib/character-types";
+import { ListenTogetherPickerModal } from "@/components/chat/listen-together-picker-modal";
 
 const PLAY_MODE_ICONS: Record<PlayMode, { svg: string; label: string }> = {
     sequence: {
@@ -74,6 +75,7 @@ export default function MusicPlayer() {
     const [palette, setPalette] = useState<CoverPalette>(DEFAULT_COVER_PALETTE);
     const [bgCfg, setBgCfg] = useState<MusicBgConfig>(() => loadMusicBg());
     const [commentTotal, setCommentTotal] = useState(0);
+    const [showListenTogether, setShowListenTogether] = useState(false);
 
     useEffect(() => {
         const handleBgChange = () => setBgCfg(loadMusicBg());
@@ -474,6 +476,11 @@ export default function MusicPlayer() {
                     <button className="music-player-ctrl-btn mp-top-btn" onClick={openMiniChat} title="聊天小窗">
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                    </button>
+                    <button className="music-player-ctrl-btn mp-top-btn" onClick={() => setShowListenTogether(true)} title="一起听 / 美化">
+                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
                         </svg>
                     </button>
                     <button className="music-player-ctrl-btn mp-top-btn" onClick={openShareViaChat} title="分享到聊天">
@@ -958,6 +965,36 @@ export default function MusicPlayer() {
                 <div className={`music-toast ${addResult.ok ? "music-toast-ok" : "music-toast-err"}`}>
                     {addResult.ok ? "✓ " : "✗ "}{addResult.message}
                 </div>
+            )}
+
+            {/* 双人一起听与美化弹窗 */}
+            {showListenTogether && (
+                <ListenTogetherPickerModal
+                    characterName="沈清洲"
+                    onClose={() => setShowListenTogether(false)}
+                    onSelectTrack={(t) => {
+                        setShowListenTogether(false);
+                        if (t.isOnline) {
+                            import("@/lib/music-service").then(({ getNeteasePlayInfo }) => {
+                                getNeteasePlayInfo(t.id).then(info => {
+                                    if (info?.url) {
+                                        player.playUrl(info.url, {
+                                            id: t.id,
+                                            title: t.title,
+                                            artist: t.artist,
+                                            coverUrl: t.coverUrl,
+                                            duration: info.duration || 240,
+                                            liked: false,
+                                            addedAt: new Date().toISOString(),
+                                        });
+                                    } else {
+                                        showMusicToast("该歌曲暂无在线试听源");
+                                    }
+                                });
+                            });
+                        }
+                    }}
+                />
             )}
 
         </div>

@@ -625,6 +625,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onToggleTheaterMode: () => void;
     onCloseTheaterMode: () => void;
     onOpenRichModal: (modal: RichModalKind) => void;
+    onOpenMusicPicker?: () => void;
     onOpenCustomPlusAction: (action: RegisteredCustomAppChatPlusAction) => void;
     onStartVideoCall: () => void;
     onStartVoiceCall: () => void;
@@ -656,6 +657,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
     onToggleTheaterMode,
     onCloseTheaterMode,
     onOpenRichModal,
+    onOpenMusicPicker,
     onOpenCustomPlusAction,
     onStartVideoCall,
     onStartVoiceCall,
@@ -735,7 +737,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="8" y1="22" x2="16" y2="22" /></svg>, label: "语音条", onClick: () => onOpenRichModal("voice_msg") },
         ...(!isGroup ? [
             { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>, label: "线下邀约", onClick: () => onOpenRichModal("date_invite") },
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>, label: "一起听", onClick: () => setShowMusicPicker(true) }
+            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>, label: "一起听", onClick: () => { onClosePanels(); onOpenMusicPicker?.(); } }
         ] : []),
         ...customPlusActions.map(action => ({
             icon: action.appIconDataUrl
@@ -6340,6 +6342,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
 	                onToggleTheaterMode={toggleTheaterMode}
 	                onCloseTheaterMode={closeTheaterMode}
 	                onOpenRichModal={(modal) => { setShowPlusMenu(false); setRichModal(modal); }}
+                onOpenMusicPicker={() => setShowMusicPicker(true)}
                 onOpenCustomPlusAction={handleOpenCustomPlusAction}
                 onStartVideoCall={() => { cancelFollowUp(session.id); setShowPlusMenu(false); setCallInitiator("user"); setShowVideoCall(true); }}
                 onStartVoiceCall={() => { cancelFollowUp(session.id); setShowPlusMenu(false); setCallInitiator("user"); setShowVoiceCall(true); }}
