@@ -63,6 +63,7 @@ type BodyView = "cover" | "lyrics";
 
 export default function MusicPlayer() {
     const player = useMusicPlayer();
+    const track = player.currentTrack;
     const progressRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [dragTime, setDragTime] = useState(0);
@@ -379,7 +380,6 @@ export default function MusicPlayer() {
         setArtistView(first);
     }, [player.currentTrack, isNeteaseTrack, neteaseId, showMusicToast]);
 
-    const track = player.currentTrack;
     const waveBars = useMemo(() => waveHeights(track?.id || "lumen"), [track?.id]);
 
     const getAdjacentTrack = (direction: "prev" | "next") => {
