@@ -390,12 +390,6 @@
   --c-adv-msg-border-style: solid;
   --c-adv-font: 'Noto Serif SC', serif;
   --c-adv-character-name: rgba(255,255,255,0.7);
-
-  /* 兼容旧变量名：让还在用旧名字的组件恢复正常 */
-  --c-bg: var(--c-panel);
-  --c-border: var(--c-panel-border);
-  --c-primary: var(--c-icon-active);
-  --c-text-sub: var(--c-text);
   --c-adv-debug-overlay: rgba(2,4,10,0.72);
   --c-adv-debug-panel-bg: linear-gradient(180deg, rgba(18,16,22,0.98), rgba(8,8,12,0.98));
   --c-adv-debug-header-bg: rgba(255,255,255,0.025);
@@ -1214,5 +1208,5 @@
   --c-bg: var(--c-panel);
   --c-border: var(--c-panel-border);
   --c-primary: var(--c-icon-active);
-  --c-text-sub: var(--c-icon);
+  --c-text-sub: var(--c-text);
 }

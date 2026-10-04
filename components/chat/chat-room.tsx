@@ -14,7 +14,7 @@ import { PhotoInputModal, TextPhotoModal, VoiceRecordModal, RedPacketModal, Loca
 import { EmojiPanel, StickerPanel } from "./emoji-panel";
 import { StickerSearchSuggest } from "./sticker-search-suggest";
 import { StateValuesPanel } from "./state-values-panel";
-import { generateChatCompletion, generateOfflineChatCompletion, flattenCompletionResult, ChatEngineError } from "@/lib/chat-engine";
+import { generateChatCompletion, generateOfflineChatCompletion, flattenCompletionResult, ChatEngineError, sendLLMRequest } from "@/lib/chat-engine";
 import { formatOfflineTurnXml as formatOfflineTurnXmlShared, buildOfflinePromptHistory as buildOfflinePromptHistoryShared } from "@/lib/offline-prompt-builder";
 import { getStatusRegionConfig, isCustomStatusRegionActive } from "@/lib/chat-status-region";
 import { CustomStatusFrame } from "@/components/chat/custom-status-frame";
@@ -46,7 +46,7 @@ import { DateInviteModal } from "./date-invite-modal";
 import { ListenTogetherPickerModal } from "./listen-together-picker-modal";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { deleteWeixinCloudMessagesFromCloud, emitWeixinSyncToast, syncAllWeixinBotRuntimesToCloud } from "@/lib/weixin-cloud-sync";
-import { loadBindingConfig, loadPresets, loadRegexes, resolveBinding, resolveUserIdentity } from "@/lib/settings-storage";
+import { loadApiConfigs, loadBindingConfig, loadPresets, loadRegexes, resolveBinding, resolveUserIdentity } from "@/lib/settings-storage";
 import { generateGroupChatCompletion, generateGroupOfflineChatCompletion, parseGroupChatResponse, buildEditableGroupRoundText } from "@/lib/group-chat-engine";
 import { appendChatOfflineTurn, deleteChatOfflineTurn, deleteChatOfflineTurnsFrom, extractThinkingTag, loadChatOfflineTurns, parseOfflineResponse, saveChatOfflineTurns, updateChatOfflineTurn, type ChatOfflineTurn } from "@/lib/chat-offline-storage";
 import { applyDisplayRegex, applyEditRegex } from "@/lib/llm-prompt-assembler";
@@ -494,6 +494,8 @@ const TRANSIENT_MESSAGE_PREFIX = "ui-transient-";
 type RichModalKind = "photo" | "text_photo" | "red_packet" | "transfer" | "location" | "transfer_target" | "voice_msg" | "gift" | "system_instruction" | "date_invite";
 type ChatTextInputHandle = {
     appendText: (text: string, options?: { focus?: boolean }) => void;
+    /** 整体替换输入框内容（撤回消息后回填重新编辑用） */
+    setText: (text: string, options?: { focus?: boolean }) => void;
     clear: () => void;
 };
 type OfflineTextInputHandle = {
@@ -695,13 +697,25 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         });
     }, []);
 
+    const setText = useCallback((text: string, options?: { focus?: boolean }) => {
+        setInputText(text);
+        requestAnimationFrame(() => {
+            const ta = textareaRef.current;
+            if (!ta) return;
+            ta.style.height = "auto";
+            ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+            if (options?.focus !== false) ta.focus();
+        });
+    }, []);
+
     useImperativeHandle(ref, () => ({
         appendText,
+        setText,
         clear: () => {
             setInputText("");
             resetTextareaHeight();
         },
-    }), [appendText]);
+    }), [appendText, setText]);
 
     const handleSubmit = () => {
         if (inputLocked) return;
@@ -4401,6 +4415,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                     role: "system",
                     content: guidanceInstruction,
                     createdAt: new Date().toISOString(),
+                    status: "sent",
                 });
             }
         }
@@ -4838,7 +4853,12 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
         syncMessagesFromStorage();
         if (msg.content) {
             // 撤回后自动回填到输入框，支持“重新编辑”
-            setInputText(msg.content);
+            // 输入框状态在子组件内部，必须通过 ref 回填；线下模式用另一个输入框
+            if (offlineMode) {
+                offlineTextInputRef.current?.setText(msg.content);
+            } else {
+                chatTextInputRef.current?.setText(msg.content);
+            }
         }
     };
 
@@ -5476,7 +5496,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                         style={{ position: 'relative' }}
                         onClick={() => {
                             if (!session.isGroup && character) {
-                                setShowCharacterProfile(true);
+                                setActiveProfileCharacter(character);
                             }
                         }}
                     >

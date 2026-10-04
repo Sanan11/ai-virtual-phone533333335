@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { Character } from "@/lib/character-types";
 import { ChatSession, loadChatSessions } from "@/lib/chat-storage";
-import { loadMomentPosts, loadMomentComments, addMomentComment, type MomentComment } from "@/lib/moments-storage";
+import { loadMomentPosts, loadMomentComments, addMomentComment } from "@/lib/moments-storage";
+import type { MomentComment } from "@/lib/moments-types";
 import { resolveUserIdentity } from "@/lib/settings-storage";
 import { triggerImmediatePost } from "@/lib/moments-engine";
 import { ChevronLeft, MessageSquare, Heart, Send, Sparkles, Loader2, MapPin, SlidersHorizontal, X } from "lucide-react";
@@ -14,6 +15,9 @@ interface CharacterProfilePageProps {
     session?: ChatSession | null;
     onBack: () => void;
     onStartChat?: () => void;
+    onVoiceCall?: () => void;
+    onVideoCall?: () => void;
+    onPlayMusic?: (query: string) => void;
 }
 
 export function CharacterProfilePage({
