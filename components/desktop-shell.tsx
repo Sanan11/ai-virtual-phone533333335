@@ -1059,6 +1059,10 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const [glassPaintPass, setGlassPaintPass] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [activeApp, setActiveApp] = useState<DesktopIconId | null>(null);
+  const [vnLaunchContext, setVnLaunchContext] = useState<{
+    characterId?: string | null;
+    dateInfo?: { location?: string; time?: string; matter?: string } | null;
+  } | null>(null);
   const [customApps, setCustomApps] = useState<InstalledCustomApp[]>([]);
   // 自定义 APP 桌面图标样式偏好（global = 忽略上传图标走全局效果）
   const [customAppIconStyles, setCustomAppIconStyles] = useState<Record<string, CustomAppIconStyle>>({});
@@ -1847,7 +1851,21 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       }
     };
     window.addEventListener("mascot-navigate", onMascotNav);
-    return () => window.removeEventListener("mascot-navigate", onMascotNav);
+
+    const onOpenVnApp = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setVnLaunchContext({
+        characterId: detail?.characterId || null,
+        dateInfo: detail?.dateInfo || null,
+      });
+      setActiveApp("vnmode");
+    };
+    window.addEventListener("open-vn-app", onOpenVnApp);
+
+    return () => {
+      window.removeEventListener("mascot-navigate", onMascotNav);
+      window.removeEventListener("open-vn-app", onOpenVnApp);
+    };
   }, []);
 
   // Update mascot context when activeApp changes

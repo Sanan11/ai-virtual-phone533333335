@@ -846,9 +846,8 @@ function AppCardBubble({ msg, characterId, characterName }: { msg: ChatMessage; 
             const location = args[0] || "约定地点";
             const time = args[1] || "约定时分";
             const matter = args[2] || d.appCardSummary || msg.content || "线下邀约";
-            window.dispatchEvent(new CustomEvent("open-app", {
+            window.dispatchEvent(new CustomEvent("open-vn-app", {
                 detail: {
-                    appId: "vnmode",
                     characterId,
                     dateInfo: { location, time, matter },
                 },

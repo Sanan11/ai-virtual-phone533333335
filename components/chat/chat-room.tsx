@@ -42,6 +42,7 @@ import { VideoCallScreen } from "./video-call-screen";
 import { GroupCallScreen } from "./group-call-screen";
 import { TransferTargetModal } from "./transfer-target-modal";
 import { GiftPickerModal } from "./gift-picker-modal";
+import { DateInviteModal } from "./date-invite-modal";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { deleteWeixinCloudMessagesFromCloud, emitWeixinSyncToast, syncAllWeixinBotRuntimesToCloud } from "@/lib/weixin-cloud-sync";
 import { loadBindingConfig, loadPresets, loadRegexes, resolveBinding, resolveUserIdentity } from "@/lib/settings-storage";
@@ -488,7 +489,7 @@ type PendingMessageJump = {
 };
 
 const TRANSIENT_MESSAGE_PREFIX = "ui-transient-";
-type RichModalKind = "photo" | "text_photo" | "red_packet" | "transfer" | "location" | "transfer_target" | "voice_msg" | "gift" | "system_instruction";
+type RichModalKind = "photo" | "text_photo" | "red_packet" | "transfer" | "location" | "transfer_target" | "voice_msg" | "gift" | "system_instruction" | "date_invite";
 type ChatTextInputHandle = {
     appendText: (text: string, options?: { focus?: boolean }) => void;
     clear: () => void;
@@ -730,6 +731,7 @@ const ChatTextInputBar = memo(forwardRef<ChatTextInputHandle, {
         { icon: <Gift size={22} strokeWidth={1.5} color="var(--c-text)" />, label: "礼物", onClick: () => onOpenRichModal("gift") },
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>, label: "位置", onClick: () => onOpenRichModal("location") },
         { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-text)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="8" y1="22" x2="16" y2="22" /></svg>, label: "语音条", onClick: () => onOpenRichModal("voice_msg") },
+        ...(!isGroup ? [{ icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--c-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>, label: "线下邀约", onClick: () => onOpenRichModal("date_invite") }] : []),
         ...customPlusActions.map(action => ({
             icon: action.appIconDataUrl
                 ? <span className="chat-plus-custom-app-icon" style={{ backgroundImage: `url(${action.appIconDataUrl})` }} aria-hidden="true" />
@@ -4958,6 +4960,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                     )}
                     {m.role === "assistant" && (
                         <>
+                            <button onClick={() => { handleRetractMessage(storedMessageId); }} className="ctx-menu-btn">撤回消息</button>
                             <button onClick={() => { setGuidedRerollTargetMsgId(storedMessageId); setGuidedRerollInstruction(""); setActiveMessageId(null); }} className="ctx-menu-btn text-[#007AFF] font-medium">指导重试</button>
                             <button onClick={() => handleRetry(storedMessageId)} className="ctx-menu-btn ctx-menu-btn-danger">重试以下</button>
                         </>
@@ -6522,6 +6525,39 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                     onSend={(text) => {
                         const sent = sendSystemInstruction(text);
                         if (sent) setRichModal(null);
+                    }}
+                    onClose={() => setRichModal(null)}
+                />
+            )}
+            {richModal === "date_invite" && (
+                <DateInviteModal
+                    characterName={character?.name || "对方"}
+                    onSend={(loc, time, matter) => {
+                        setRichModal(null);
+                        // 发送 AppCard 类型的线下邀约卡片
+                        sendRichMessage("app_card", {
+                            appName: "线下邀约",
+                            appId: "offline-date",
+                            appCardTitle: "浪漫线下之约",
+                            appCardBody: `“${matter}”`,
+                            appDirectiveId: "offline_date",
+                            appDirectiveArgs: [loc, time, matter],
+                            status: "等待赴约 ♥",
+                            actions: [{ label: "进入「漫卷」赴约", style: "primary" }],
+                        }, `[线下邀约:${loc}:${time}:${matter}]`);
+                    }}
+                    onAIGenerate={async () => {
+                        const recentMsgs = messages.slice(-10).map(m => `${m.role === 'user' ? '用户' : character?.name || '角色'}: ${m.content}`).join('\n');
+                        const prompt = `根据以下最近聊天记录，以${character?.name || '角色'}的身份，为两人设计一个浪漫线下约会的地点、时间和契机一句话，严格按JSON格式输出：{\"location\":\"地点\",\"time\":\"时间\",\"matter\":\"一句话心动语\"}：\n${recentMsgs}`;
+                        const bindings = loadBindingConfig();
+                        const slot = resolveBinding(bindings, character?.id, 'chat');
+                        const configs = loadApiConfigs();
+                        const cfg = configs.find(c => c.id === slot.apiConfigId) || configs[0];
+                        if (!cfg) throw new Error('未配置 API');
+                        const raw = await sendLLMRequest(cfg, null, [{ role: 'user', content: prompt }], [], { characterName: character?.name, userName: userIdentity?.name });
+                        const match = raw.match(/\{[\s\S]*?\}/);
+                        if (match) return JSON.parse(match[0]);
+                        return { location: '暮色海边', time: '今晚七点', matter: '想和你吹吹晚风散散步' };
                     }}
                     onClose={() => setRichModal(null)}
                 />
