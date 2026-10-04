@@ -43,6 +43,7 @@ import { GroupCallScreen } from "./group-call-screen";
 import { TransferTargetModal } from "./transfer-target-modal";
 import { GiftPickerModal } from "./gift-picker-modal";
 import { DateInviteModal } from "./date-invite-modal";
+import { ListenTogetherPickerModal } from "./listen-together-picker-modal";
 import { ConfirmDialog } from "@/components/ui/modal";
 import { deleteWeixinCloudMessagesFromCloud, emitWeixinSyncToast, syncAllWeixinBotRuntimesToCloud } from "@/lib/weixin-cloud-sync";
 import { loadBindingConfig, loadPresets, loadRegexes, resolveBinding, resolveUserIdentity } from "@/lib/settings-storage";
@@ -6609,64 +6610,54 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                 />
             )}
 
-            {/* 一起听音乐选择弹窗 */}
+            {/* 真实音乐App曲库联动 · 一起听弹窗 */}
             {showMusicPicker && (
-                <div className="modal-overlay" onClick={() => setShowMusicPicker(false)}>
-                    <div
-                        className="modal-dialog max-w-sm w-full mx-4 p-4 rounded-2xl bg-[var(--c-card)] border border-[var(--c-border)] shadow-xl flex flex-col gap-3"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between pb-2 border-b border-[var(--c-border)]">
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-base">🎵</span>
-                                <span className="ts-15 font-semibold text-[var(--c-text-title)]">邀请 {character?.name || "TA"} 一起听歌</span>
-                            </div>
-                            <button type="button" onClick={() => setShowMusicPicker(false)} className="ui-bare-btn">
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <p className="text-xs text-[var(--c-text-sub)]">
-                            输入一首你想和 {character?.name || "TA"} 共同聆听的歌曲，播放时聊天顶部将显示专属一起听状态胶囊：
-                        </p>
-                        <div className="flex flex-col gap-2">
-                            <input
-                                type="text"
-                                id="custom-song-input"
-                                placeholder="输入歌名，如：晴天 / 简单爱 / 富士山下..."
-                                className="ui-input text-xs w-full py-2 px-3 rounded-xl"
-                            />
-                        </div>
-                        <div className="flex gap-2.5 mt-2">
-                            <button type="button" onClick={() => setShowMusicPicker(false)} className="ui-btn flex-1 text-xs py-2">
-                                取消
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const input = document.getElementById('custom-song-input') as HTMLInputElement | null;
-                                    const songName = input?.value.trim() || "晴天";
-                                    setShowMusicPicker(false);
-                                    // 1. 发起聊天音乐卡片
-                                    sendRichMessage("music_share", { musicTitle: songName, label: songName }, `[音乐分享:${songName}]`);
-                                    // 2. 如果播放器存在，尝试播放
-                                    if (musicPlayer) {
-                                        musicPlayer.playTrack({
-                                            id: `together_${Date.now()}`,
-                                            title: songName,
-                                            artist: character?.name || "网络精选",
-                                            duration: 240,
-                                            liked: true,
+                <ListenTogetherPickerModal
+                    characterName={character?.name || "对方"}
+                    onSelectTrack={async (track) => {
+                        setShowMusicPicker(false);
+                        // 1. 在私聊中发送音乐分享卡片并沉淀心境
+                        sendRichMessage("music_share", {
+                            musicTitle: track.title,
+                            musicArtist: track.artist,
+                            label: track.title,
+                        }, `[音乐分享:${track.title}${track.artist ? ` - ${track.artist}` : ""}]`);
+
+                        // 2. 同步启动全局真实音乐播放器播放该曲目！
+                        if (musicPlayer) {
+                            if (track.isOnline) {
+                                // 在线单曲：获取试听 URL 并播放
+                                try {
+                                    const { getNeteasePlayInfo } = await import("@/lib/music-service");
+                                    const info = await getNeteasePlayInfo(track.id);
+                                    if (info?.url) {
+                                        musicPlayer.playUrl(info.url, {
+                                            id: track.id,
+                                            title: track.title,
+                                            artist: track.artist,
+                                            coverUrl: track.coverUrl,
+                                            duration: info.duration || 240,
+                                            liked: false,
                                             addedAt: new Date().toISOString(),
                                         });
+                                    } else {
+                                        showChatToast("该歌曲暂无在线试听源");
                                     }
-                                }}
-                                className="ui-btn ui-btn-primary flex-1 text-xs py-2"
-                            >
-                                发起一起听
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                                } catch (e) {
+                                    console.error(e);
+                                }
+                            } else {
+                                // 本地音乐：直接由播放器根据 trackId 或对象开始播放
+                                const allTracks = await (await import("@/lib/music-storage")).loadAllTracks();
+                                const matched = allTracks.find(t => t.id === track.id);
+                                if (matched) {
+                                    musicPlayer.playTrack(matched);
+                                }
+                            }
+                        }
+                    }}
+                    onClose={() => setShowMusicPicker(false)}
+                />
             )}
 
             {/* 思维链底部弹窗（Claude app 风格） */}
