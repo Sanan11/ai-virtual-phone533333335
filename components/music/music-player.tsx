@@ -280,6 +280,8 @@ export default function MusicPlayer() {
     const [liked, setLiked] = useState(false);
     const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [radarMatching, setRadarMatching] = useState(false);
+    const [matchedStranger, setMatchedStranger] = useState<{ char: Character; distance: number } | null>(null);
     const [playlists, setPlaylists] = useState<NeteasePlaylist[]>([]);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
     const [addResult, setAddResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -776,8 +778,32 @@ export default function MusicPlayer() {
                                 ✕
                             </button>
                         </div>
-                        <div className="p-3 text-xs text-[var(--c-text-sub)] border-b border-[var(--c-border,#333)] bg-white/5">
-                            正在播放: <strong className="text-[var(--c-text-title)]">{track?.title}</strong> - {track?.artist || "未知"}
+                        <div className="p-3 text-xs text-[var(--c-text-sub)] border-b border-[var(--c-border,#333)] bg-white/5 flex items-center justify-between">
+                            <div className="truncate mr-2">
+                                正在播放: <strong className="text-[var(--c-text-title)]">{track?.title}</strong>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const allChars = loadCharacters();
+                                    if (allChars.length === 0) {
+                                        showMusicToast("还没有创建任何角色");
+                                        return;
+                                    }
+                                    setRadarMatching(true);
+                                    setMatchedStranger(null);
+                                    setTimeout(() => {
+                                        const randomChar = allChars[Math.floor(Math.random() * allChars.length)];
+                                        const distance = Math.floor(100 + Math.random() * 3200);
+                                        setMatchedStranger({ char: randomChar, distance });
+                                        setRadarMatching(false);
+                                    }, 2200);
+                                }}
+                                className="px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-[var(--c-primary,#e53e3e)] text-white text-[11px] font-bold shadow-md hover:brightness-110 active:scale-95 transition-all shrink-0 flex items-center gap-1.5"
+                            >
+                                <span className="animate-pulse">📡</span>
+                                <span>雷达偶遇陌生人</span>
+                            </button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
                             {(() => {
@@ -836,6 +862,92 @@ export default function MusicPlayer() {
                                     </div>
                                 ));
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 雷达扫描匹配中 Modal */}
+            {radarMatching && (
+                <div className="modal-overlay z-50 flex items-center justify-center p-4" onClick={() => setRadarMatching(false)}>
+                    <div className="w-full max-w-xs rounded-3xl bg-black/85 backdrop-blur-2xl border border-white/20 p-6 flex flex-col items-center gap-5 text-white shadow-2xl relative overflow-hidden select-none animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="relative w-28 h-28 flex items-center justify-center">
+                            <div className="absolute inset-0 rounded-full border border-pink-500/30 animate-ping" style={{ animationDuration: '2s' }} />
+                            <div className="absolute inset-2 rounded-full border border-[var(--c-primary,#e53e3e)]/50 animate-pulse" />
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-500 to-[var(--c-primary,#e53e3e)] flex items-center justify-center text-2xl shadow-[0_0_30px_rgba(236,72,153,0.5)]">
+                                📡
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-1.5 text-center">
+                            <span className="text-sm font-bold tracking-wide">正在雷达搜寻同频灵魂...</span>
+                            <span className="text-[11px] text-white/60">匹配此时此刻正在听这首歌的陌生人</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 匹配成功展示卡片 Modal */}
+            {matchedStranger && (
+                <div className="modal-overlay z-50 flex items-center justify-center p-4" onClick={() => setMatchedStranger(null)}>
+                    <div className="w-full max-w-xs rounded-3xl bg-[var(--c-card,#1c1c1e)] border border-white/20 p-5 flex flex-col items-center gap-4 text-[var(--c-text-title,#fff)] shadow-2xl relative select-none animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="text-xs font-semibold px-3 py-1 rounded-full bg-pink-500/15 text-pink-400 border border-pink-500/30 flex items-center gap-1.5">
+                            <span>✨ 偶遇同频陌生人</span>
+                        </div>
+                        <div className="relative">
+                            <div className="w-20 h-20 rounded-full overflow-hidden ring-4 ring-pink-500/40 shadow-xl bg-black/40">
+                                {matchedStranger.char.avatar ? (
+                                    <img src={matchedStranger.char.avatar} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-lg font-bold">{matchedStranger.char.name.slice(0, 1)}</div>
+                                )}
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full bg-black/75 text-[10px] text-white border border-white/20">
+                                {matchedStranger.distance}km
+                            </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 text-center">
+                            <span className="text-base font-bold">{matchedStranger.char.name}</span>
+                            <span className="text-xs text-[var(--c-text-sub)] line-clamp-2 px-2">{matchedStranger.char.personality || "也在深夜听着同一首旋律..."}</span>
+                        </div>
+                        <div className="w-full flex items-center gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => setMatchedStranger(null)}
+                                className="flex-1 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-xs font-medium text-[var(--c-text-sub)] active:scale-95 transition-all"
+                            >
+                                错身而过
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const stranger = matchedStranger.char;
+                                    setMatchedStranger(null);
+                                    setShowInviteModal(false);
+                                    if (!track) return;
+                                    const sess = createOrGetSession(stranger.id);
+                                    pushChatMessage({
+                                        sessionId: sess.id,
+                                        role: "user",
+                                        content: `[音乐分享:${track.title}${track.artist ? ` - ${track.artist}` : ""}]`,
+                                        mediaType: "music_share",
+                                        mediaData: {
+                                            musicTitle: track.title,
+                                            musicArtist: track.artist,
+                                            label: track.title,
+                                        },
+                                    });
+                                    pushChatMessage({
+                                        sessionId: sess.id,
+                                        role: "user",
+                                        content: `你好呀，雷达偶遇！原来你也喜欢听「${track.title}」✨`,
+                                    });
+                                    showMusicToast(`已和 ${stranger.name} 建立连接！`);
+                                }}
+                                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-[var(--c-primary,#e53e3e)] text-white text-xs font-bold shadow-lg hover:brightness-105 active:scale-95 transition-all flex items-center justify-center gap-1"
+                            >
+                                <span>开启同听</span>
+                                <span>🎧</span>
+                            </button>
                         </div>
                     </div>
                 </div>
