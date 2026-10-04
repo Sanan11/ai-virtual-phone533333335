@@ -11,7 +11,7 @@ interface ListenTogetherPickerModalProps {
     characterAvatar?: string;
     userName?: string;
     userAvatar?: string;
-    onSelectTrack: (track: { title: string; artist: string; id: string; coverUrl?: string; isOnline?: boolean }) => void;
+    onSelectTrack: (track: { title: string; artist: string; id: string; coverUrl?: string; duration?: number; isOnline?: boolean }) => void;
     onClose: () => void;
 }
 
@@ -354,8 +354,9 @@ export function ListenTogetherPickerModal({
                                                 onSelectTrack({
                                                     id: String(s.id),
                                                     title: s.name,
-                                                    artist: s.artists?.map(a => a.name).join("/") || "",
-                                                    coverUrl: s.album?.picUrl,
+                                                    artist: s.artists || "",
+                                                    coverUrl: s.coverUrl,
+                                                    duration: s.duration ? Math.round(s.duration / 1000) : undefined,
                                                     isOnline: true,
                                                 });
                                                 setActiveTab("main");
@@ -364,15 +365,15 @@ export function ListenTogetherPickerModal({
                                         >
                                             <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
                                                 <div className="w-7 h-7 rounded-md overflow-hidden bg-black/40 shrink-0 flex items-center justify-center">
-                                                    {s.album?.picUrl ? (
-                                                        <img src={s.album.picUrl} alt="" className="w-full h-full object-cover" />
+                                                    {s.coverUrl ? (
+                                                        <img src={s.coverUrl} alt="" className="w-full h-full object-cover" />
                                                     ) : (
                                                         <Music size={13} className="text-pink-400" />
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col truncate">
                                                     <span className="text-xs text-white/90 truncate">{s.name}</span>
-                                                    <span className="text-[10px] text-white/40 truncate">{s.artists?.map(a => a.name).join("/") || "在线单曲"}</span>
+                                                    <span className="text-[10px] text-white/40 truncate">{s.artists || "在线单曲"}</span>
                                                 </div>
                                             </div>
                                             <span className="text-[11px] text-pink-400 group-hover:translate-x-0.5 transition-transform shrink-0 font-medium">播放 →</span>

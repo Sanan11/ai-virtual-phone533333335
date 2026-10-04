@@ -199,8 +199,8 @@ export default function TogetherListenCard({
     try {
       const identity = resolveUserIdentity();
       return {
-        name: identity.name || "我",
-        avatar: identity.avatar || null,
+        name: identity?.name || "我",
+        avatar: identity?.avatarUrl || null,
       };
     } catch {
       return { name: "我", avatar: null };

@@ -2751,8 +2751,13 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
 
     const hasKnownGroupSenderPrefix = (text: string) => {
         return groupCharacters.some((groupCharacter) => {
+            const escapedName = groupCharacter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\    const hasKnownGroupSenderPrefix = (text: string) => {
+        return groupCharacters.some((groupCharacter) => {
             const escapedName = groupCharacter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             return new RegExp(`^\\[${escapedName}\\]:\\s*`, "m").test(text);
+        });
+    };");
+            return new RegExp(`^\\[${escapedName}\\]\\s*[:：]\\s*`, "m").test(text);
         });
     };
 
@@ -5532,7 +5537,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                         </div>
                         <div className="flex items-baseline gap-1.5 truncate">
                             <span className="text-[11px] text-[var(--c-primary)] font-medium shrink-0">与 {character?.name || "TA"} 一起听:</span>
-                            <span className="font-semibold truncate text-[var(--c-text-title)]">{musicPlayer.currentTrack.name}</span>
+                            <span className="font-semibold truncate text-[var(--c-text-title)]">{musicPlayer.currentTrack.title}</span>
                             {musicPlayer.currentTrack.artist && (
                                 <span className="text-[10px] text-[var(--c-text-sub)] truncate">- {musicPlayer.currentTrack.artist}</span>
                             )}
@@ -6601,8 +6606,11 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                             appCardBody: `“${matter}”`,
                             appDirectiveId: "offline_date",
                             appDirectiveArgs: [loc, time, matter],
-                            status: "等待赴约 ♥",
-                            actions: [{ label: "进入「漫卷」赴约", style: "primary" }],
+                            // 卡片状态与按钮只从 appCardLayout 读取，放在 mediaData 顶层不会渲染
+                            appCardLayout: {
+                                status: "等待赴约 ♥",
+                                actions: [{ label: "进入「漫卷」赴约", style: "primary" }],
+                            },
                         }, `[线下邀约:${loc}:${time}:${matter}]`);
                     }}
                     onAIGenerate={async () => {
@@ -6626,9 +6634,9 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
             {showMusicPicker && (
                 <ListenTogetherPickerModal
                     characterName={character?.name || "对方"}
-                    characterAvatar={character?.avatar}
+                    characterAvatar={character?.avatar ?? undefined}
                     userName={userIdentity?.name || "我"}
-                    userAvatar={userIdentity?.avatar}
+                    userAvatar={userIdentity?.avatarUrl || undefined}
                     onSelectTrack={async (track) => {
                         setShowMusicPicker(false);
                         // 1. 在私聊中发送音乐分享卡片并沉淀心境
@@ -6644,14 +6652,14 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                                 // 在线单曲：获取试听 URL 并播放
                                 try {
                                     const { getNeteasePlayInfo } = await import("@/lib/music-service");
-                                    const info = await getNeteasePlayInfo(track.id);
+                                    const info = await getNeteasePlayInfo(Number(track.id));
                                     if (info?.url) {
                                         musicPlayer.playUrl(info.url, {
                                             id: track.id,
                                             title: track.title,
                                             artist: track.artist,
                                             coverUrl: track.coverUrl,
-                                            duration: info.duration || 240,
+                                            duration: track.duration || 240,
                                             liked: false,
                                             addedAt: new Date().toISOString(),
                                         });

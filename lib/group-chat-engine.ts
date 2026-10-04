@@ -146,7 +146,21 @@ export function parseGroupChatResponse(
     // 通用切分：任何 [名字]: 行都开启新段落——包括被踢成员、冒用的用户名或
     // 幻觉名字。未知名字的段落随后被 nameToId 校验整段丢弃，防止其内容以
     // 字面文本粘进上一个合法角色的气泡（或经兜底逻辑错挂到第一个成员头上）。
-    const pattern = /^\[([^\]\n]{1,32})\]:\s*/;
+    // 容错：中文模型常输出全角冒号「[名字]：」、全角括号「【名字】：」、
+    // 名字后多一个空格，或用 **加粗** 包住前缀；这些都按同一个发言人前缀处理。
+    const pattern = /^\s*(?:\*\*)?[\[【]\s*([^\]】\n]{1,32}?)\s*[\]】]\s*(?:\*\*)?\s*[:：]\s*(?:\*\*)?\s*/;
+
+    // 名字比对：先精确匹配，再忽略大小写/全半角/首尾空白匹配（不唯一时不做模糊匹配）
+    const normalizeName = (value: string) => value.normalize("NFKC").trim().toLowerCase();
+    const normalizedNames = new Map<string, string>();
+    for (const n of names) {
+        const key = normalizeName(n);
+        normalizedNames.set(key, normalizedNames.has(key) ? "" : n);
+    }
+    const resolveName = (raw: string): string | undefined => {
+        if (nameToId.has(raw)) return raw;
+        return normalizedNames.get(normalizeName(raw)) || undefined;
+    };
 
     const segments: { name: string; lines: string[] }[] = [];
     let currentName: string | null = null;
@@ -175,9 +189,14 @@ export function parseGroupChatResponse(
     for (const seg of segments) {
         const content = seg.lines.join("\n").trim();
         if (!content) continue;
-        const charId = nameToId.get(seg.name);
-        if (!charId) continue;
-        rawResults.push({ characterId: charId, characterName: seg.name, responseText: content });
+        const canonicalName = resolveName(seg.name);
+        const charId = canonicalName ? nameToId.get(canonicalName) : undefined;
+        if (!canonicalName || !charId) {
+            // 未知发言人（昵称/幻觉名字/被踢成员）：整段丢弃，但留一条日志方便排查「角色没回复」
+            console.warn(`[GroupChat] 丢弃未知发言人的回复段落: [${seg.name}]（群成员: ${names.join("、")}）`);
+            continue;
+        }
+        rawResults.push({ characterId: charId, characterName: canonicalName, responseText: content });
     }
 
     // Preserve original segment order, but repair a common format slip:

@@ -995,20 +995,20 @@ export default function MusicPlayer() {
             {showListenTogether && (
                 <ListenTogetherPickerModal
                     characterName={activeTogetherChar?.name || "TA"}
-                    characterAvatar={activeTogetherChar?.avatar}
+                    characterAvatar={activeTogetherChar?.avatar ?? undefined}
                     onClose={() => setShowListenTogether(false)}
                     onSelectTrack={(t) => {
                         setShowListenTogether(false);
                         if (t.isOnline) {
                             import("@/lib/music-service").then(({ getNeteasePlayInfo }) => {
-                                getNeteasePlayInfo(t.id).then(info => {
+                                getNeteasePlayInfo(Number(t.id)).then(info => {
                                     if (info?.url) {
                                         player.playUrl(info.url, {
                                             id: t.id,
                                             title: t.title,
                                             artist: t.artist,
                                             coverUrl: t.coverUrl,
-                                            duration: info.duration || 240,
+                                            duration: t.duration || 240,
                                             liked: false,
                                             addedAt: new Date().toISOString(),
                                         });

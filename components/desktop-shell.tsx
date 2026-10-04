@@ -618,6 +618,52 @@ function StatusClock() {
   return <span className="status-time">{label}</span>;
 }
 
+/** 灵动岛点击「一起听」后的双人同听台：补齐角色信息与选歌回调（原先两个必填 props 缺失，点歌会直接报错） */
+function IslandTogetherModal({ onClose }: { onClose: () => void }) {
+  const player = useMusicControlsOptional();
+  const together = useMemo(() => {
+    try {
+      const track = player?.currentTrack;
+      const sess = loadChatSessions().find(
+        s => s.listenTogetherTrack && (!track || s.listenTogetherTrack.id === track.id || s.listenTogetherTrack.name === track.title),
+      );
+      const found = sess ? loadCharacters().find(c => c.id === sess.contactId) : null;
+      return found ? { name: found.name, avatar: found.avatar || undefined } : null;
+    } catch {
+      return null;
+    }
+  }, [player?.currentTrack]);
+
+  return (
+    <ListenTogetherPickerModal
+      characterName={together?.name || "TA"}
+      characterAvatar={together?.avatar}
+      onClose={onClose}
+      onSelectTrack={async (t) => {
+        onClose();
+        if (!player || !t.isOnline) return;
+        try {
+          const { getNeteasePlayInfo } = await import("@/lib/music-service");
+          const info = await getNeteasePlayInfo(Number(t.id));
+          if (info?.url) {
+            player.playUrl(info.url, {
+              id: t.id,
+              title: t.title,
+              artist: t.artist,
+              coverUrl: t.coverUrl,
+              duration: t.duration || 240,
+              liked: false,
+              addedAt: new Date().toISOString(),
+            });
+          }
+        } catch (err) {
+          console.warn("[IslandTogether] 播放失败:", err);
+        }
+      }}
+    />
+  );
+}
+
 function StatusDynamicIsland({ onOpenMusicTogether, onOpenTogetherCard }: { onOpenMusicTogether?: () => void; onOpenTogetherCard?: () => void }) {
   const player = useMusicControlsOptional();
   const [togetherChar, setTogetherChar] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
@@ -5161,9 +5207,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       </section>
       {/* 灵动岛点击一起听弹出的双人美化与换歌弹窗 */}
       {showIslandTogetherModal && (
-        <ListenTogetherPickerModal
-          onClose={() => setShowIslandTogetherModal(false)}
-        />
+        <IslandTogetherModal onClose={() => setShowIslandTogetherModal(false)} />
       )}
       {/* 微信云同步过程可视化：拉取/上传/运行包同步与失败都在这里冒 toast */}
       <WeixinSyncToast />
