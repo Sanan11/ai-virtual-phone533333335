@@ -89,6 +89,34 @@ function PluginKindBubble({ msg, kind }: { msg: ChatMessage; kind: string }) {
  * Falls back to ReactMarkdown for plain text messages.
  */
 export const MessageBubble = memo(function MessageBubble({ msg, onUpdate, charName, userName, onSystemMessage, groupSize, onShowDetail, characterId, onMusicPlay, onActionSelect, displayContent, defaultTranslationExpanded = false }: MessageBubbleProps) {
+    const [showRetractedPeek, setShowRetractedPeek] = useState(false);
+
+    if (msg.isRetracted) {
+        const isSelf = msg.role === "user";
+        const label = isSelf ? "你" : (msg.senderName || charName || "对方");
+        return (
+            <div className="flex flex-col items-center justify-center my-1.5 w-full select-none">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--c-bubble-sys-bg,rgba(0,0,0,0.05))] text-[var(--c-text-sub)] text-xs">
+                    <span>{label} 撤回了一条消息</span>
+                    {msg.retractedOriginalContent && (
+                        <button
+                            type="button"
+                            className="text-[var(--c-primary)] hover:underline ml-1 cursor-pointer"
+                            onClick={() => setShowRetractedPeek(p => !p)}
+                        >
+                            {showRetractedPeek ? "收起" : "查看"}
+                        </button>
+                    )}
+                </div>
+                {showRetractedPeek && msg.retractedOriginalContent && (
+                    <div className="mt-1 text-xs px-3 py-1.5 rounded-lg bg-[var(--c-card)] border border-[var(--c-border)] text-[var(--c-text-sub)] max-w-[85%] break-words opacity-80">
+                        [已撤回]: {msg.retractedOriginalContent}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     switch (msg.mediaType) {
         case "red_packet":
             return <RedPacketBubble msg={msg} charName={charName} userName={userName} groupSize={groupSize} onShowDetail={onShowDetail} />;

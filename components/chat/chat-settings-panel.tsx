@@ -413,6 +413,10 @@ export function ChatSettingsPanel({
         return (latest as Record<string, unknown>)?.customCSS as string || session.customCSS || "";
     });
 
+    // 单聊专属关系与备注
+    const [characterUserRelationship, setCharacterUserRelationship] = useState(session.characterUserRelationship || "");
+    const [characterUserRemark, setCharacterUserRemark] = useState(session.characterUserRemark || "");
+
     // 群聊专属设定
     const [groupContextSetting, setGroupContextSetting] = useState(session.groupContextSetting || "");
     const [groupWorldBookIds, setGroupWorldBookIds] = useState<string[]>(session.groupWorldBookIds || []);
@@ -1098,6 +1102,47 @@ export function ChatSettingsPanel({
                                         <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 单聊专属设定：与我的关系 & TA对我的专属备注 */}
+                {!session.isGroup && (
+                    <div className="menu-group">
+                        <div className="menu-header px-4 pt-3 pb-1 text-xs font-semibold text-[var(--c-text-sub)]">
+                            专属羁绊与称谓
+                        </div>
+                        <div className="p-4 flex flex-col gap-3">
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-[var(--c-text-title)]">与我的关系</span>
+                                    <span className="text-[11px] text-[var(--c-text-sub)]">例如：暗恋的青梅竹马、合租挚友、严格的上司</span>
+                                </div>
+                                <Input
+                                    value={characterUserRelationship}
+                                    onChange={e => {
+                                        setCharacterUserRelationship(e.target.value);
+                                        updateSession({ characterUserRelationship: e.target.value });
+                                    }}
+                                    placeholder="填写你与TA的关系定位，角色将严格遵守该设定"
+                                    className="ui-input text-xs w-full"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-[var(--c-text-title)]">TA对我的专属备注/称呼</span>
+                                    <span className="text-[11px] text-[var(--c-text-sub)]">角色可在日常对话中直接称呼你此名字</span>
+                                </div>
+                                <Input
+                                    value={characterUserRemark}
+                                    onChange={e => {
+                                        setCharacterUserRemark(e.target.value);
+                                        updateSession({ characterUserRemark: e.target.value });
+                                    }}
+                                    placeholder="例如：笨蛋、小朋友、长官、阿澄"
+                                    className="ui-input text-xs w-full"
+                                />
                             </div>
                         </div>
                     </div>

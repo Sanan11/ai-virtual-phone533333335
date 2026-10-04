@@ -134,6 +134,8 @@ export interface AssemblerInput {
     cocreateChapterIndex?: string;
     cocreateArchivedChapterContext?: string;
     cocreateWriterNotebook?: string;
+    characterUserRelationship?: string;
+    characterUserRemark?: string;
 }
 
 type PromptBlock = {
@@ -521,6 +523,7 @@ function pushChronologicalShortTermBlocks(params: {
             prevTs = (timeAware && msg.createdAt) ? formatChatTimestamp(msg.createdAt, timestampOptions) : "";
             return;
         }
+        if (msg.isRetracted) return; // 撤回的消息不进入模型上下文
         if (msg.mediaType === "music_notify"
             || msg.mediaType === "tool_notice"
             || isNativeToolResultMessage(msg)
@@ -737,6 +740,26 @@ export function assemblePromptPayload(input: AssemblerInput): LLMMessage[] {
         let orderIdx = 0;
         let afterChatHistory = false;
         let afterOrderIdx = 0;
+        const beforeHistoryDepth = resolveBeforeHistoryDepth(history.length, input.unifiedRecentItems?.length);
+
+        // 注入角色与用户的专属关系及备注设定
+        if (input.characterUserRelationship?.trim() || input.characterUserRemark?.trim()) {
+            const relParts: string[] = ["<character_user_bond>"];
+            if (input.characterUserRelationship?.trim()) {
+                relParts.push(`【与用户(${resolvedUserName})的关系】：${input.characterUserRelationship.trim()}`);
+            }
+            if (input.characterUserRemark?.trim()) {
+                relParts.push(`【对用户(${resolvedUserName})的专属称呼/备注】："${input.characterUserRemark.trim()}"（你在日常回复中可以直接使用此称谓）`);
+            }
+            relParts.push("注意：请在所有对话中严格契合上述专属关系与称呼风格。", "</character_user_bond>");
+            blocks.push({
+                text: relParts.join("\n"),
+                role: "system",
+                depth: beforeHistoryDepth,
+                order: orderIdx++,
+                marker: "character_user_bond",
+            });
+        }
         const beforeHistoryDepth = resolveBeforeHistoryDepth(history.length, input.unifiedRecentItems?.length);
         const absoluteEntries: { prompt: Prompt; content: string; promptIndex: number }[] = [];
 
@@ -1693,6 +1716,7 @@ function pushGroupChronologicalShortTermBlocks(params: {
             prevWasHistory = true;
             return;
         }
+        if (msg.isRetracted) return; // 撤回的消息不进入群聊模型上下文
         if (msg.mediaType === "tool_notice"
             || isNativeToolResultMessage(msg)) return;
 

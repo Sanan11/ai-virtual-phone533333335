@@ -81,6 +81,9 @@ export type ChatSession = {
     groupContextSetting?: string; // 成员关系与情境背景设定文本
     groupWorldBookIds?: string[]; // 该群聊绑定的世界书 ID 列表
     groupPresetId?: string; // 该群聊绑定的专属预设 ID
+    // 角色与用户的专属关系及备注
+    characterUserRelationship?: string; // 角色与用户的关系设定（如暗恋的青梅竹马）
+    characterUserRemark?: string; // 角色对用户的专属备注名（如笨蛋、长官）
 };
 
 export type ChatMessageStatus = "sending" | "sent" | "read" | "failed";
@@ -104,6 +107,9 @@ export type ChatMessage = {
     toolExecutionId?: string; // Links visible tool attachments to their persisted tool result
     editableResponseText?: string; // Processed text shown in the reply editor
     isRetracted?: boolean;
+    retractedBy?: "user" | "character"; // 消息撤回人
+    retractedAt?: string; // 撤回时间
+    retractedOriginalContent?: string; // 撤回前的原始内容，支持“重新编辑”或“偷看撤回”
     mediaType?: "image" | "audio" | "video"
         | "red_packet" | "transfer" | "location"
         | "poke" | "sticker" | "quote" | "dice"
@@ -1494,6 +1500,45 @@ export function deleteChatMessagesFrom(messageId: string) {
     }
 
     dispatchDeletedMessages(deletedMessages);
+}
+
+/**
+ * 撤回消息（双向支持：用户或角色）
+ */
+export function retractChatMessage(messageId: string, retractedBy: "user" | "character" = "user"): ChatMessage | null {
+    const targetMsg = _messagesCache.find(m => m.id === messageId);
+    if (!targetMsg) return null;
+    const sessionId = targetMsg.sessionId;
+
+    const updatedMsg: ChatMessage = {
+        ...targetMsg,
+        isRetracted: true,
+        retractedBy,
+        retractedAt: new Date().toISOString(),
+        retractedOriginalContent: targetMsg.content,
+        content: "",
+    };
+
+    _messagesCache = _messagesCache.map(m => m.id === messageId ? updatedMsg : m);
+    dbPutMessages([updatedMsg]);
+
+    // 更新会话最后一条消息预览
+    const lastMsg = getLastVisibleSessionMessage(sessionId);
+    const sessions = loadChatSessions();
+    const sessIdx = sessions.findIndex(s => s.id === sessionId);
+    if (sessIdx !== -1) {
+        if (lastMsg) {
+            sessions[sessIdx].lastMessageId = lastMsg.id;
+            sessions[sessIdx].lastMessagePreview = getChatMessagePreview(lastMsg);
+            sessions[sessIdx].updatedAt = lastMsg.createdAt;
+        }
+        saveChatSessions(sessions);
+    }
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(CHAT_MESSAGE_PUSHED_EVENT, { detail: { message: updatedMsg } }));
+    }
+    return updatedMsg;
 }
 
 export function deleteChatMessagesByIds(sessionId: string, messageIds: string[]): number {

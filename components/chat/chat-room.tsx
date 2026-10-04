@@ -4838,6 +4838,18 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
         }
     };
 
+    const handleRetractMessage = (msgId: string) => {
+        setActiveMessageId(null);
+        const msg = loadChatMessages(session.id).find(m => m.id === msgId);
+        if (!msg) return;
+        retractChatMessage(msgId, "user");
+        syncMessagesFromStorage();
+        if (msg.content) {
+            // 撤回后自动回填到输入框，支持“重新编辑”
+            setInputText(msg.content);
+        }
+    };
+
     const handleDeleteMessage = (msgId: string) => {
         if (isTransientMessage(msgId)) {
             removeTransientMessage(msgId);

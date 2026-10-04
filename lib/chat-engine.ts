@@ -1936,6 +1936,8 @@ export async function buildChatPromptMessages(
         offlineBilingualInstruction,
         offlineSummaryTag: preset?.story_summary_tag?.trim() || "summary",
         nativeToolHistory: usesNativeActions,
+        characterUserRelationship: session.characterUserRelationship,
+        characterUserRemark: session.characterUserRemark,
     });
     if (promptProfile?.output === "plain_text") {
         llmMessages.push({

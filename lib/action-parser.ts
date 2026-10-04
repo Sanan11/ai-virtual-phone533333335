@@ -12,7 +12,7 @@ import {
     getVisiblePosts,
     loadMomentsConfig,
 } from "./moments-storage";
-import { loadChatContacts, loadChatSessions, loadChatMessages, createOrGetSession, addChatContact } from "./chat-storage";
+import { loadChatContacts, loadChatSessions, saveChatSessions, loadChatMessages, createOrGetSession, addChatContact, retractChatMessage } from "./chat-storage";
 import { parseAndSaveResponse } from "./follow-up-service";
 import { loadCharacters } from "./character-storage";
 import { clearRequestsForCharacter, dispatchFriendRequestUpdated } from "./friend-request-storage";
@@ -40,7 +40,7 @@ export type ActionContext = {
 
 // ── Parser ──
 
-const ACTION_TAGS = ["朋友圈", "群消息", "评论", "回复", "消息", "私信"] as const;
+const ACTION_TAGS = ["朋友圈", "群消息", "评论", "回复", "消息", "私信", "撤回", "改备注", "更新关系"] as const;
 
 function normalizeActionQuotes(text: string): string {
     return text.replace(/[\u201C\u201D\u2018\u2019\u300C\u300D]/g, "\"");
@@ -178,7 +178,7 @@ export function parseActionTags(text: string): {
  */
 const KNOWN_ACTION_TAGS = [
     // 中文方括号格式
-    "朋友圈", "评论", "回复", "消息", "群消息", "私信",
+    "朋友圈", "评论", "回复", "消息", "群消息", "私信", "撤回", "改备注", "更新关系",
     // XML 格式 (AI 偶尔幻觉输出)
     "action_chat_message", "action_moments_post",
     "action_comment", "action_reply",
@@ -246,6 +246,15 @@ export async function dispatchActions(
                     break;
                 case "群消息":
                     await dispatchGroupChatMessage(action, effectiveCtx);
+                    break;
+                case "撤回":
+                    dispatchRetractMessage(action, effectiveCtx);
+                    break;
+                case "改备注":
+                    dispatchChangeUserRemark(action, effectiveCtx);
+                    break;
+                case "更新关系":
+                    dispatchUpdateRelationship(action, effectiveCtx);
                     break;
             }
         } catch (err) {
@@ -484,6 +493,51 @@ function findCommentByContent(keyword: string, viewerCharacterId: string): { pos
         }
     }
     return null;
+}
+
+// ── 撤回、改备注与关系更新 Action Handlers ──
+
+function dispatchRetractMessage(action: ActionTag, context: ActionContext): void {
+    const sessionId = context.sessionId || createOrGetSession(context.characterId).id;
+    const msgs = loadChatMessages(sessionId);
+    // 找到该角色发送的最后一条非撤回消息进行撤回
+    const lastCharMsg = [...msgs].reverse().find(m => !m.isRetracted && m.role === "assistant");
+    if (lastCharMsg) {
+        retractChatMessage(lastCharMsg.id, "character");
+        console.log(`[ActionParser] Character retracted message ${lastCharMsg.id} in session ${sessionId}`);
+    }
+}
+
+function dispatchChangeUserRemark(action: ActionTag, context: ActionContext): void {
+    const newRemark = action.content.trim();
+    if (!newRemark) return;
+    const sessionId = context.sessionId || createOrGetSession(context.characterId).id;
+    const sessions = loadChatSessions();
+    const target = sessions.find(s => s.id === sessionId);
+    if (target) {
+        target.characterUserRemark = newRemark;
+        saveChatSessions(sessions);
+        console.log(`[ActionParser] Updated characterUserRemark to "${newRemark}" for session ${sessionId}`);
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("chat-session-updated", { detail: { sessionId } }));
+        }
+    }
+}
+
+function dispatchUpdateRelationship(action: ActionTag, context: ActionContext): void {
+    const newRel = action.content.trim();
+    if (!newRel) return;
+    const sessionId = context.sessionId || createOrGetSession(context.characterId).id;
+    const sessions = loadChatSessions();
+    const target = sessions.find(s => s.id === sessionId);
+    if (target) {
+        target.characterUserRelationship = newRel;
+        saveChatSessions(sessions);
+        console.log(`[ActionParser] Updated characterUserRelationship to "${newRel}" for session ${sessionId}`);
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("chat-session-updated", { detail: { sessionId } }));
+        }
+    }
 }
 
 // ── Helpers ──
