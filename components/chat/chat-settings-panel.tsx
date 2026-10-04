@@ -2040,9 +2040,9 @@ export function ChatSettingsPanel({
 
             {/* 群专属世界书多选弹窗 */}
             {showGroupWorldBookPicker && (
-                <div className="modal-backdrop" onClick={() => setShowGroupWorldBookPicker(false)}>
+                <div className="fixed inset-0 z-[10030] flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true" onClick={() => setShowGroupWorldBookPicker(false)}>
                     <div
-                        className="modal-content max-w-sm w-full mx-4 overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col max-h-[80vh]"
+                        className="modal-content max-w-sm w-full overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col max-h-[80vh] text-[var(--c-text)]"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="modal-header px-4 py-3 border-b border-[var(--c-border)] flex items-center justify-between">
@@ -2113,9 +2113,9 @@ export function ChatSettingsPanel({
 
             {/* AI 推导群聊关系弹窗 */}
             {showAiDeriveModal && (
-                <div className="modal-backdrop" onClick={() => !isDerivingAi && setShowAiDeriveModal(false)}>
+                <div className="fixed inset-0 z-[10030] flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true" onClick={() => !isDerivingAi && setShowAiDeriveModal(false)}>
                     <div
-                        className="modal-content max-w-sm w-full mx-4 overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col"
+                        className="modal-content max-w-sm w-full overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col text-[var(--c-text)]"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="modal-header px-4 py-3 border-b border-[var(--c-border)] flex items-center justify-between">
@@ -2192,9 +2192,9 @@ export function ChatSettingsPanel({
 
             {/* 群成员专属头衔管理弹窗（QQ群精髓） */}
             {showTitleEditor && (
-                <div className="modal-backdrop" onClick={() => setShowTitleEditor(false)}>
+                <div className="fixed inset-0 z-[10030] flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true" onClick={() => setShowTitleEditor(false)}>
                     <div
-                        className="modal-content max-w-sm w-full mx-4 overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col max-h-[80vh]"
+                        className="modal-content max-w-sm w-full overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col max-h-[80vh] text-[var(--c-text)]"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="modal-header px-4 py-3 border-b border-[var(--c-border)] flex items-center justify-between">
