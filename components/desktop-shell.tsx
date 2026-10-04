@@ -2375,6 +2375,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
   const [activeChatSession, setActiveChatSession] = useState<ChatSession | null>(null);
   const [customAppLaunchContext, setCustomAppLaunchContext] = useState<CustomAppLaunchState | null>(null);
   const [appMarketLaunchContext, setAppMarketLaunchContext] = useState<Record<string, unknown> | null>(null);
+  const [vnLaunchContext, setVnLaunchContext] = useState<{
+    characterId?: string | null;
+    dateInfo?: { location?: string; time?: string; matter?: string } | null;
+  } | null>(null);
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
@@ -2401,6 +2405,13 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
         setAppMarketLaunchContext(nextAppId === "appmarket" ? launchContextRecord : null);
         if (detail.appId === "resources") {
           setResourcesInitialPage(detail.resourcePage === "vn_assets" || detail.resourcePage === "memory" ? detail.resourcePage : "main");
+        }
+        if (nextAppId === "vnmode") {
+          const detailAny = detail as Record<string, any>;
+          setVnLaunchContext({
+            characterId: detailAny.characterId || (launchContextRecord as any)?.characterId || null,
+            dateInfo: detailAny.dateInfo || (launchContextRecord as any)?.dateInfo || null,
+          });
         }
         setActiveApp(nextAppId as DesktopIconId);
         if (detail.sessionId) setChatInitSessionId(detail.sessionId);
@@ -4063,7 +4074,16 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
     }
 
     if (activeApp === "vnmode") {
-      return <VnApp onClose={() => setActiveApp(null)} />;
+      return (
+        <VnApp
+          onClose={() => {
+            setActiveApp(null);
+            setVnLaunchContext(null);
+          }}
+          initialCharacterId={vnLaunchContext?.characterId}
+          initialDateInfo={vnLaunchContext?.dateInfo}
+        />
+      );
     }
 
     if (activeApp === "reading") {

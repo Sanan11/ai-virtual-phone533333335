@@ -798,6 +798,24 @@ function AppCardBubble({ msg, characterId, characterName }: { msg: ChatMessage; 
     const openApp = () => {
         if (cardOpenDisabled) return;
         if (!d?.appId || typeof window === "undefined") return;
+
+        // 若为线下邀约卡片，直接拉起原生视觉小说 AVG 漫卷全屏演播
+        const isDateInvite = d.appId === "offline-date" || d.appName === "线下邀约" || d.appDirectiveId === "offline_date";
+        if (isDateInvite && characterId) {
+            const args = d.appDirectiveArgs || [];
+            const location = args[0] || "约定地点";
+            const time = args[1] || "约定时分";
+            const matter = args[2] || d.appCardSummary || msg.content || "线下邀约";
+            window.dispatchEvent(new CustomEvent("open-app", {
+                detail: {
+                    appId: "vnmode",
+                    characterId,
+                    dateInfo: { location, time, matter },
+                },
+            }));
+            return;
+        }
+
         window.dispatchEvent(new CustomEvent("open-app", {
             detail: {
                 appId: toCustomAppIconId(d.appId),
