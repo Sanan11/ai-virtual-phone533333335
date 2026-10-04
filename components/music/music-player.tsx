@@ -17,6 +17,9 @@ import {
 import MusicCommentsPage from "./music-comments";
 import MusicArtistPage from "./music-artist";
 import { loadMusicBg, playerBgStyle, MUSIC_BG_EVENT, type MusicBgConfig } from "@/lib/music-bg";
+import { loadChatContacts, pushChatMessage, createOrGetSession } from "@/lib/chat-storage";
+import { loadCharacters } from "@/lib/character-storage";
+import type { Character } from "@/lib/character-types";
 
 const PLAY_MODE_ICONS: Record<PlayMode, { svg: string; label: string }> = {
     sequence: {
@@ -276,6 +279,7 @@ export default function MusicPlayer() {
 
     const [liked, setLiked] = useState(false);
     const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
     const [playlists, setPlaylists] = useState<NeteasePlaylist[]>([]);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
     const [addResult, setAddResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -642,6 +646,15 @@ export default function MusicPlayer() {
                     </svg>
                     <span>{commentTotal > 0 ? formatCount(commentTotal) : "评论"}</span>
                 </button>
+                <button className="mp-social-btn" onClick={() => setShowInviteModal(true)} title="邀请角色一起听歌">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span>一起听</span>
+                </button>
                 <button className="mp-social-btn" onClick={openShareViaChat}>
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
@@ -745,6 +758,87 @@ export default function MusicPlayer() {
                     artistName={artistView.name}
                     onClose={() => setArtistView(null)}
                 />
+            )}
+
+            {/* Invite Character Together Overlay */}
+            {showInviteModal && (
+                <div className="modal-overlay z-50" onClick={() => setShowInviteModal(false)}>
+                    <div
+                        className="modal-dialog max-w-sm w-full mx-4 max-h-[75vh] flex flex-col p-0 rounded-2xl bg-[var(--c-card,#1e1e1e)] border border-[var(--c-border,#333)] shadow-2xl overflow-hidden select-none text-[var(--c-text-title,#fff)]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="p-3.5 border-b border-[var(--c-border,#333)] flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-base">🎧</span>
+                                <span className="text-sm font-semibold">邀请好友一起听歌</span>
+                            </div>
+                            <button type="button" onClick={() => setShowInviteModal(false)} className="ui-bare-btn p-1 text-[var(--c-text-sub)]">
+                                ✕
+                            </button>
+                        </div>
+                        <div className="p-3 text-xs text-[var(--c-text-sub)] border-b border-[var(--c-border,#333)] bg-white/5">
+                            正在播放: <strong className="text-[var(--c-text-title)]">{track?.title}</strong> - {track?.artist || "未知"}
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
+                            {(() => {
+                                const contacts = loadChatContacts();
+                                const allChars = loadCharacters();
+                                const validChars = contacts
+                                    .map(c => allChars.find(char => char.id === c.characterId))
+                                    .filter(Boolean) as Character[];
+
+                                if (validChars.length === 0) {
+                                    return (
+                                        <div className="py-8 text-center text-xs text-[var(--c-text-sub)]">
+                                            暂无联系人，先去聊天中添加好友吧
+                                        </div>
+                                    );
+                                }
+
+                                return validChars.map(c => (
+                                    <div
+                                        key={c.id}
+                                        onClick={() => {
+                                            setShowInviteModal(false);
+                                            if (!track) return;
+                                            // 1. 获取/创建与该角色的会话
+                                            const sess = createOrGetSession(c.id);
+                                            // 2. 发送音乐分享消息
+                                            pushChatMessage({
+                                                sessionId: sess.id,
+                                                role: "user",
+                                                content: `[音乐分享:${track.title}${track.artist ? ` - ${track.artist}` : ""}]`,
+                                                mediaType: "music_share",
+                                                mediaData: {
+                                                    musicTitle: track.title,
+                                                    musicArtist: track.artist,
+                                                    label: track.title,
+                                                },
+                                            });
+                                            showMusicToast(`已向 ${c.name} 发起一起听！`);
+                                        }}
+                                        className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-white/10 cursor-pointer active:scale-98 transition-all"
+                                    >
+                                        <div className="w-9 h-9 rounded-full overflow-hidden bg-black/20 shrink-0">
+                                            {c.avatar ? (
+                                                <img src={c.avatar} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-xs">{c.name.slice(0, 1)}</div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col flex-1 truncate">
+                                            <span className="text-xs font-semibold truncate">{c.name}</span>
+                                            <span className="text-[10px] text-[var(--c-text-sub)] truncate">{c.personality || "点击邀请 TA 同步听歌"}</span>
+                                        </div>
+                                        <button className="px-2.5 py-1 rounded-full bg-[var(--c-primary,#e53e3e)] text-white text-[11px] font-semibold">
+                                            邀请
+                                        </button>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Add result toast */}
