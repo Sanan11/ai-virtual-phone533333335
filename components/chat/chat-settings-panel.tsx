@@ -38,7 +38,11 @@ import { triggerDeleteFriendReaction } from "@/lib/friend-request-engine";
 import { loadCharacters } from "@/lib/character-storage";
 import { isAgentComputerConfigured } from "@/lib/agent-computer";
 import { CharacterComputerPage } from "./character-computer-page";
-import { resolveUserIdentity, loadBindingConfig, loadPresets, resolveBinding } from "@/lib/settings-storage";
+import { resolveUserIdentity, loadBindingConfig, loadPresets, loadWorldBooks, resolveBinding, loadApiConfigs } from "@/lib/settings-storage";
+import { sendLLMRequest } from "@/lib/chat-engine";
+import { retrieveCoreMemoriesForPrompt } from "@/lib/memory-service";
+import { loadMemoryConfig } from "@/lib/memory-storage";
+import { formatCoreMemories } from "@/lib/memory-injector";
 import { getStatusRegionConfig, saveStatusRegionConfig, presetSupportsStatusRegion, isCustomStatusRegionActive, STATUS_REGION_SCHEME_TARGET, STATUS_REGION_UPDATED_EVENT, type StatusRegionConfig } from "@/lib/chat-status-region";
 import { downloadFile } from "@/lib/download-utils";
 import { getSchemes, saveScheme, deleteScheme, type CSSScheme } from "@/lib/css-scheme-storage";
@@ -409,6 +413,18 @@ export function ChatSettingsPanel({
         return (latest as Record<string, unknown>)?.customCSS as string || session.customCSS || "";
     });
 
+    // 群聊专属设定
+    const [groupContextSetting, setGroupContextSetting] = useState(session.groupContextSetting || "");
+    const [groupWorldBookIds, setGroupWorldBookIds] = useState<string[]>(session.groupWorldBookIds || []);
+    const [groupPresetId, setGroupPresetId] = useState<string>(session.groupPresetId || "");
+    const [showGroupWorldBookPicker, setShowGroupWorldBookPicker] = useState(false);
+    const [showAiDeriveModal, setShowAiDeriveModal] = useState(false);
+    const [aiDeriveInstruction, setAiDeriveInstruction] = useState("");
+    const [isDerivingAi, setIsDerivingAi] = useState(false);
+    const [aiDeriveError, setAiDeriveError] = useState("");
+    const allAvailableWorldBooks = useMemo(() => loadWorldBooks(), []);
+    const allAvailablePresets = useMemo(() => loadPresets(), []);
+
     const [showConfirmClear, setShowConfirmClear] = useState(false);
     const [showConfirmClearOffline, setShowConfirmClearOffline] = useState(false);
     const [showConfirmClearTools, setShowConfirmClearTools] = useState(false);
@@ -628,6 +644,85 @@ export function ChatSettingsPanel({
             sessions[sessIdx] = { ...sessions[sessIdx], ...updates };
             saveChatSessions(sessions);
             Object.assign(session, updates);
+        }
+    };
+
+    const handleAiDeriveRelationship = async () => {
+        setIsDerivingAi(true);
+        setAiDeriveError("");
+        try {
+            const bindings = loadBindingConfig();
+            const activeSlot = resolveBinding(bindings, undefined, "group_chat");
+            const boundConfigId = activeSlot.apiConfigId;
+            const apiConfigs = loadApiConfigs();
+            const config = apiConfigs.find(c => c.id === boundConfigId) || apiConfigs[0];
+            if (!config) throw new Error("未找到可用模型配置，请先在设置中配置 API。");
+
+            const activeWorldBooks = (groupWorldBookIds || [])
+                .map(id => allAvailableWorldBooks.find(w => w.id === id))
+                .filter(Boolean);
+            const wbSummary = activeWorldBooks.length > 0
+                ? activeWorldBooks.map(wb => `【世界书: ${wb!.name}】\n${(wb!.entries || []).slice(0, 8).map(e => `[${e.key}]: ${e.content}`).join("\n")}`).join("\n\n")
+                : "（无额外世界书设定，按日常现实背景）";
+
+            const memConfig = loadMemoryConfig();
+            const memberCharInfos = await Promise.all((session.participantIds || []).map(async (charId) => {
+                const c = characters.find(ch => ch.id === charId);
+                if (!c) return "";
+                let memText = "";
+                try {
+                    const coreMems = await retrieveCoreMemoriesForPrompt(charId, memConfig);
+                    if (coreMems) memText = formatCoreMemories(coreMems);
+                } catch { /* ignore */ }
+                return [
+                    `【成员: ${c.name}】`,
+                    c.personality ? `性格特质: ${c.personality}` : "",
+                    c.persona ? `人物设定: ${c.persona}` : "",
+                    memText ? `核心记忆/羁绊: ${memText}` : "",
+                ].filter(Boolean).join("\n");
+            }));
+
+            const charsDetails = memberCharInfos.filter(Boolean).join("\n\n");
+
+            const systemPrompt = "你是一个剧本与群聊情境设计专家。请根据提供的群成员角色设定、记忆线索与世界书背景，分析并推导群内成员之间的彼此关系网络、互动称谓以及当前群聊的背景情境。要求：语言自然传神，充满角色色彩与张力，直接输出供群聊Prompt使用的设定正文，格式清晰工整，严禁说客套话或废话。";
+            const userPrompt = [
+                "### 世界观与背景设定",
+                wbSummary,
+                "\n### 群成员档案与已有线索",
+                charsDetails || "（暂无特别成员设定）",
+                aiDeriveInstruction.trim() ? `\n### 用户期望方向/特殊指示\n${aiDeriveInstruction.trim()}` : "",
+                "\n### 生成要求",
+                "请生成包含以下内容的群聊设定：",
+                "1. 【群聊情境与定位】：这是一个怎样的群聊？因何聚集？",
+                "2. 【成员关系网络与称谓】：两两之间的关系定位、私下与群内相互称呼、潜在的情感、矛盾或默契。",
+                "3. 【互动基调与注意点】：群内交流的风格、雷区与互动原则。",
+                "请直接输出纯文本内容：",
+            ].join("\n");
+
+            const result = await sendLLMRequest(
+                config,
+                null,
+                [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt },
+                ],
+                [],
+                { characterName: "群聊专家", userName },
+                { appId: "group_chat" }
+            );
+
+            if (result.trim()) {
+                setGroupContextSetting(result.trim());
+                updateSession({ groupContextSetting: result.trim() });
+                setShowAiDeriveModal(false);
+                setAiDeriveInstruction("");
+            } else {
+                throw new Error("模型返回内容为空，请重试。");
+            }
+        } catch (err) {
+            setAiDeriveError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setIsDerivingAi(false);
         }
     };
 
@@ -928,6 +1023,83 @@ export function ChatSettingsPanel({
                                 </div>
                             </button>
                         )}
+                    </div>
+                )}
+
+                {/* 群聊专属情境、世界书与独立预设设定 */}
+                {session.isGroup && (
+                    <div className="menu-group">
+                        <div className="menu-header px-4 pt-3 pb-1 text-xs font-semibold text-[var(--c-text-sub)]">
+                            群聊专属设定
+                        </div>
+                        
+                        {/* 群聊情境与关系设定 */}
+                        <div className="p-4 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    <Users size={16} className="text-[var(--c-primary)]" />
+                                    <span className="text-sm font-medium text-[var(--c-text-title)]">群成员关系与情境背景</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="text-xs px-2.5 py-1 rounded-lg bg-[var(--c-primary)]/10 text-[var(--c-primary)] hover:bg-[var(--c-primary)]/20 transition-colors flex items-center gap-1"
+                                    onClick={() => setShowAiDeriveModal(true)}
+                                >
+                                    <Sparkles size={12} />
+                                    AI推导关系
+                                </button>
+                            </div>
+                            <textarea
+                                value={groupContextSetting}
+                                onChange={e => {
+                                    setGroupContextSetting(e.target.value);
+                                    updateSession({ groupContextSetting: e.target.value });
+                                }}
+                                placeholder="设定群聊场景与两两成员之间的关系、称呼方式、互动基调... 例如：\n- A与B是相识多年的损友，互相起外号；\n- C是刚转入的新人，对大家尊称..."
+                                className="ui-input w-full p-2.5 text-xs rounded-xl"
+                                style={{ minHeight: 90, lineHeight: 1.6, resize: "vertical" }}
+                            />
+                        </div>
+
+                        {/* 群专属世界书绑定 */}
+                        <button className="menu-item" onClick={() => setShowGroupWorldBookPicker(true)}>
+                            <ChatInfoIcon icon={FolderOpen} color={BINDING_ACCENTS.memory} />
+                            <div className="menu-label-group">
+                                <span className="menu-label">群专属世界书</span>
+                                <span className="menu-desc">连接系统世界书，注入群专属背景条目</span>
+                            </div>
+                            <div className="menu-right flex items-center gap-1">
+                                <span className="menu-desc">
+                                    {groupWorldBookIds.length > 0 ? `已选 ${groupWorldBookIds.length} 本` : "未选择"}
+                                </span>
+                                <ChevronRight size={16} />
+                            </div>
+                        </button>
+
+                        {/* 群专属提示词预设 */}
+                        <div className="menu-item">
+                            <ChatInfoIcon icon={Sparkles} color={BINDING_ACCENTS.preset} />
+                            <div className="menu-label-group">
+                                <span className="menu-label">群专属预设</span>
+                                <span className="menu-desc">为此群指定独立提示词预设</span>
+                            </div>
+                            <div className="menu-right">
+                                <select
+                                    value={groupPresetId}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setGroupPresetId(val);
+                                        updateSession({ groupPresetId: val || undefined });
+                                    }}
+                                    className="ui-input text-xs py-1 px-2 rounded-lg max-w-[140px]"
+                                >
+                                    <option value="">跟随全局设置</option>
+                                    {allAvailablePresets.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -1763,6 +1935,158 @@ export function ChatSettingsPanel({
                                 }}
                             >
                                 保存并启用
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 群专属世界书多选弹窗 */}
+            {showGroupWorldBookPicker && (
+                <div className="modal-backdrop" onClick={() => setShowGroupWorldBookPicker(false)}>
+                    <div
+                        className="modal-content max-w-sm w-full mx-4 overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col max-h-[80vh]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="modal-header px-4 py-3 border-b border-[var(--c-border)] flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <FolderOpen size={16} className="text-[var(--c-primary)]" />
+                                <span className="text-sm font-semibold text-[var(--c-text-title)]">选择群专属世界书</span>
+                            </div>
+                            <button
+                                type="button"
+                                className="modal-header-btn"
+                                onClick={() => setShowGroupWorldBookPicker(false)}
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex flex-col gap-2 flex-1">
+                            {allAvailableWorldBooks.length === 0 ? (
+                                <div className="py-8 text-center text-xs text-[var(--c-text-sub)]">
+                                    暂无已创建的世界书，请前往设置中创建
+                                </div>
+                            ) : (
+                                allAvailableWorldBooks.map(wb => {
+                                    const isSelected = groupWorldBookIds.includes(wb.id);
+                                    return (
+                                        <div
+                                            key={wb.id}
+                                            onClick={() => {
+                                                const next = isSelected
+                                                    ? groupWorldBookIds.filter(id => id !== wb.id)
+                                                    : [...groupWorldBookIds, wb.id];
+                                                setGroupWorldBookIds(next);
+                                                updateSession({ groupWorldBookIds: next });
+                                            }}
+                                            className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                                                isSelected
+                                                    ? "border-[var(--c-primary)] bg-[var(--c-primary)]/10"
+                                                    : "border-[var(--c-border)] hover:bg-[var(--c-card)]"
+                                            }`}
+                                        >
+                                            <div className="flex flex-col gap-0.5 overflow-hidden pr-2">
+                                                <span className="text-xs font-semibold text-[var(--c-text-title)] truncate">{wb.name}</span>
+                                                <span className="text-[11px] text-[var(--c-text-sub)] truncate">
+                                                    {wb.description || `${wb.entries?.length || 0} 个设定条目`}
+                                                </span>
+                                            </div>
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                                isSelected ? "border-[var(--c-primary)] bg-[var(--c-primary)]" : "border-[var(--c-border)]"
+                                            }`}>
+                                                {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                        <div className="p-3 border-t border-[var(--c-border)] flex justify-end">
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn-primary w-full text-xs py-2"
+                                onClick={() => setShowGroupWorldBookPicker(false)}
+                            >
+                                完成
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI 推导群聊关系弹窗 */}
+            {showAiDeriveModal && (
+                <div className="modal-backdrop" onClick={() => !isDerivingAi && setShowAiDeriveModal(false)}>
+                    <div
+                        className="modal-content max-w-sm w-full mx-4 overflow-hidden rounded-2xl bg-[var(--c-bg)] border border-[var(--c-border)] shadow-xl flex flex-col"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="modal-header px-4 py-3 border-b border-[var(--c-border)] flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Sparkles size={16} className="text-[var(--c-primary)]" />
+                                <span className="text-sm font-semibold text-[var(--c-text-title)]">AI 智能推导群聊关系与情景</span>
+                            </div>
+                            {!isDerivingAi && (
+                                <button
+                                    type="button"
+                                    className="modal-header-btn"
+                                    onClick={() => setShowAiDeriveModal(false)}
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
+                        </div>
+                        <div className="p-4 flex flex-col gap-3">
+                            <div className="text-xs text-[var(--c-text-sub)] leading-relaxed bg-[var(--c-card)] p-3 rounded-xl border border-[var(--c-border)]">
+                                系统将聚合：
+                                <br />• 群内全部角色设定与性格
+                                <br />• 角色的核心长期记忆与羁绊
+                                <br />• 已勾选的群专属世界书内容
+                                <br />自动推导出两两成员之间的关系、称呼方式与整体群聊背景。
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-xs font-medium text-[var(--c-text-title)]">额外指示词（可选）：</span>
+                                <textarea
+                                    value={aiDeriveInstruction}
+                                    onChange={e => setAiDeriveInstruction(e.target.value)}
+                                    placeholder="例如：修仙宗门的师尊、大师兄与小师妹；表面和睦暗地互相竞争的合租室友...（留空则自由推导）"
+                                    className="ui-input w-full p-2.5 text-xs rounded-xl"
+                                    style={{ minHeight: 70, lineHeight: 1.5, resize: "none" }}
+                                    disabled={isDerivingAi}
+                                />
+                            </div>
+                            {aiDeriveError && (
+                                <div className="text-xs text-[var(--c-danger)] bg-[var(--c-danger)]/10 p-2.5 rounded-lg">
+                                    {aiDeriveError}
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-3 border-t border-[var(--c-border)] flex gap-2">
+                            <button
+                                type="button"
+                                className="ui-btn flex-1 text-xs py-2"
+                                onClick={() => setShowAiDeriveModal(false)}
+                                disabled={isDerivingAi}
+                            >
+                                取消
+                            </button>
+                            <button
+                                type="button"
+                                className="ui-btn ui-btn-primary flex-1 text-xs py-2 flex items-center justify-center gap-1.5"
+                                onClick={handleAiDeriveRelationship}
+                                disabled={isDerivingAi}
+                            >
+                                {isDerivingAi ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <span>正在推导中...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles size={13} />
+                                        <span>开始推导</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

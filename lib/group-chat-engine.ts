@@ -307,7 +307,8 @@ async function buildGroupChatPromptMessages(
     if (!config) throw new ChatEngineError("API Configuration not found for group chat.");
 
     const presets = loadPresets();
-    let preset = activeSlot.presetId ? presets.find(p => p.id === activeSlot.presetId) || null : null;
+    const effectivePresetId = session.groupPresetId || activeSlot.presetId;
+    let preset = effectivePresetId ? presets.find(p => p.id === effectivePresetId) || null : null;
     if (!preset) preset = presets.find(p => p.builtIn) ?? null;
     const promptProfile = options?.promptProfile ?? undefined;
     if (preset && promptProfile) {
@@ -457,11 +458,17 @@ async function buildGroupChatPromptMessages(
         userName,
     );
 
+    const groupWorldBooks = (session.groupWorldBookIds || [])
+        .map(id => allWorldBooks.find(w => w.id === id))
+        .filter(Boolean) as typeof allWorldBooks;
+
     const llmMessages = assembleGroupPromptPayload({
         members,
         history: promptHistory,
         preset,
         regexes,
+        groupContextSetting: session.groupContextSetting,
+        groupWorldBooks,
         appTags: activeAppTags,
         userIdentity,
         userName,

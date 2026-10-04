@@ -77,6 +77,10 @@ export type ChatSession = {
     groupMutes?: Record<string, string>; // (characterId | "self") → mute expiry ISO
     allowAdminActionsOnUser?: boolean; // characters may kick/mute the user (default off)
     isSpectator?: boolean; // 围观群：用户不在群内，只能生成/线下
+    // 群聊专属设定
+    groupContextSetting?: string; // 成员关系与情境背景设定文本
+    groupWorldBookIds?: string[]; // 该群聊绑定的世界书 ID 列表
+    groupPresetId?: string; // 该群聊绑定的专属预设 ID
 };
 
 export type ChatMessageStatus = "sending" | "sent" | "read" | "failed";

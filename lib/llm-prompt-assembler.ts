@@ -1622,6 +1622,8 @@ export interface GroupAssemblerInput {
     checkPhoneBilingualInstruction?: string;
     xiaohongshuBilingualInstruction?: string;
     nativeToolHistory?: boolean;
+    groupContextSetting?: string;
+    groupWorldBooks?: WorldBookConfig[];
 }
 
 function pushGroupChronologicalShortTermBlocks(params: {
@@ -1777,6 +1779,24 @@ export function assembleGroupPromptPayload(input: GroupAssemblerInput): LLMMessa
         marker: "personaDescription",
     });
 
+    // 1.2 群聊专属关系与背景设定 (Group Context Setting)
+    if (input.groupContextSetting?.trim()) {
+        const contextBlock = [
+            "<group_relationships_and_context>",
+            "### 当前群聊背景与成员关系设定",
+            input.groupContextSetting.trim(),
+            "\n注意：群内全体角色在发言、互动与称谓时，必须严格遵守并体现上述成员关系与情境背景！",
+            "</group_relationships_and_context>",
+        ].join("\n");
+        blocks.push({
+            text: contextBlock,
+            role: "system",
+            depth: beforeHistoryDepth,
+            order: orderIdx++,
+            marker: "group_relationships_and_context",
+        });
+    }
+
     // 1.5 跨成员世界书去重(多人资料包全局规则):
     //  - 独享书(仅 1 个成员绑定):维持现状——前/后条目进该成员的 <member> 块,
     //    at-depth 条目按深度插入聊天历史({{char}}=该成员)。
@@ -1803,6 +1823,38 @@ export function assembleGroupPromptPayload(input: GroupAssemblerInput): LLMMessa
     const isSharedBook = (id: string): boolean => (bookBinderIds.get(id)?.size ?? 0) >= 2;
     const atDepthInjections: { entry: WorldBookEntry; engine: MacroEngine }[] = [];
     const sharedAfterBlocks: { text: string; marker: string }[] = [];
+
+    // 1.6 群聊专属世界书 (Group Dedicated WorldBooks) 注入池 (在成员前/后及 at-depth)
+    const groupDedicatedBooks = input.groupWorldBooks ?? [];
+    for (const wb of groupDedicatedBooks) {
+        const bookEngine = new MacroEngine(members.map(m => m.character.name).join("、"), resolvedUserName);
+        applyTimeContextToMacroEngine(bookEngine, groupTimeContext);
+        const activated = (wb.entries || []).filter(entry =>
+            !entry.disable && isWorldBookEntryActivated(entry, activationContext));
+        activated.filter(e => isWBAtDepthPosition(e)).forEach(entry => {
+            atDepthInjections.push({ entry, engine: bookEngine });
+        });
+        const renderJoined = (entries: WorldBookEntry[]): string => {
+            const sorted = [...entries].sort((a, b) => (a.insertion_order ?? 50) - (b.insertion_order ?? 50));
+            return postProcessTrim(bookEngine.expand(
+                sorted.map(e => applyWorldInfoRegex(e.content, regexes, { macroEngine: bookEngine, activeTags })).join("\n\n"),
+            )).trim();
+        };
+        const beforeText = renderJoined(activated.filter(e => isWBBeforePosition(e)));
+        if (beforeText) {
+            blocks.push({
+                text: beforeText,
+                role: "system",
+                depth: beforeHistoryDepth,
+                order: orderIdx++,
+                marker: `groupWorldInfo(before): ${wb.name || wb.id}`,
+            });
+        }
+        const afterText = renderJoined(activated.filter(e => !isWBBeforePosition(e) && !isWBAtDepthPosition(e)));
+        if (afterText) {
+            sharedAfterBlocks.push({ text: afterText, marker: `groupWorldInfo(after): ${wb.name || wb.id}` });
+        }
+    }
 
     const seenSharedBooks = new Set<string>();
     for (const m of members) {
