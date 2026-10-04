@@ -539,25 +539,6 @@ export default function MusicPlayer() {
                     </div>
                 ) : playerStyle === "vinyl" ? (
                     <div className="music-player-vinyl-area flex flex-col items-center" onClick={() => setView("lyrics")}>
-                        {/* 黑胶模式下顶部同步展示同听状态胶囊 */}
-                        {activeTogetherChar && (
-                            <div
-                                onClick={(e) => { e.stopPropagation(); setShowListenTogether(true); }}
-                                className="mb-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-pink-500/40 text-white shadow-xl cursor-pointer hover:bg-black/80 active:scale-95 transition-all z-20"
-                            >
-                                <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-pink-400 shrink-0">
-                                    {activeTogetherChar.avatar ? (
-                                        <img src={activeTogetherChar.avatar} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full bg-pink-600 text-[10px] flex items-center justify-center font-bold">{activeTogetherChar.name.slice(0, 1)}</div>
-                                    )}
-                                </div>
-                                <span className="text-[11px] font-medium text-pink-200 truncate max-w-[120px]">
-                                    与 {activeTogetherChar.name} 一起听
-                                </span>
-                                <span className="w-2 h-2 rounded-full bg-pink-500 animate-ping shrink-0" />
-                            </div>
-                        )}
                         <div className="music-player-vinyl-glow" />
                         <div className="music-player-vinyl" {...(player.isPlaying ? { "data-spinning": "" } : {})}>
                             <div className="music-player-vinyl-groove music-player-vinyl-groove-1" />
@@ -585,25 +566,6 @@ export default function MusicPlayer() {
                     </div>
                 ) : (
                     <div className="mp-cover-area" onClick={() => setView("lyrics")}>
-                        {/* 若处于一起听状态，在播放画面中央顶部展示同听胶囊动效 */}
-                        {activeTogetherChar && (
-                            <div
-                                onClick={(e) => { e.stopPropagation(); setShowListenTogether(true); }}
-                                className="mb-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-pink-500/30 text-white shadow-lg cursor-pointer hover:bg-black/60 active:scale-95 transition-all z-10"
-                            >
-                                <div className="relative w-6 h-6 rounded-full overflow-hidden ring-1 ring-pink-400 shrink-0">
-                                    {activeTogetherChar.avatar ? (
-                                        <img src={activeTogetherChar.avatar} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full bg-pink-600 text-[10px] flex items-center justify-center font-bold">{activeTogetherChar.name.slice(0, 1)}</div>
-                                    )}
-                                </div>
-                                <span className="text-[11px] font-medium text-pink-200 truncate max-w-[120px]">
-                                    与 {activeTogetherChar.name} 一起听
-                                </span>
-                                <span className="w-2 h-2 rounded-full bg-pink-500 animate-ping shrink-0" />
-                            </div>
-                        )}
                         <div className="mp-cover" {...(player.isPlaying ? {} : { "data-paused": "" })}>
                             {track.coverUrl ? (
                                 <img src={track.coverUrl} alt="" />

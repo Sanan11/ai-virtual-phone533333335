@@ -143,6 +143,7 @@ import { sendBrowserNotification } from "@/lib/browser-notification";
 import type { ChatSharePayload } from "@/lib/chat-share";
 import { completePendingMcpOAuthCallback } from "@/lib/tool-executor";
 import { LayoutGrid, LoaderCircle, RefreshCw } from "lucide-react";
+import { ListenTogetherPickerModal } from "@/components/chat/listen-together-picker-modal";
 
 const EMOJI_FONTS = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla"';
 
@@ -614,6 +615,81 @@ function StatusClock() {
   }, []);
 
   return <span className="status-time">{label}</span>;
+}
+
+function StatusDynamicIsland({ onOpenMusicTogether }: { onOpenMusicTogether?: () => void }) {
+  const player = useMusicControlsOptional();
+  const [togetherChar, setTogetherChar] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
+
+  useEffect(() => {
+    const checkTogether = () => {
+      try {
+        const sessions = loadChatSessions();
+        const track = player?.currentTrack;
+        const activeSess = sessions.find(s => s.listenTogetherTrack && (!track || s.listenTogetherTrack.id === track.id || s.listenTogetherTrack.name === track.title));
+        if (activeSess) {
+          const allChars = loadCharacters();
+          const found = allChars.find(c => c.id === activeSess.contactId);
+          if (found) {
+            setTogetherChar({ id: found.id, name: found.name, avatar: found.avatar || null });
+            return;
+          }
+        }
+        setTogetherChar(null);
+      } catch {
+        setTogetherChar(null);
+      }
+    };
+    checkTogether();
+    window.addEventListener("chat-session-updated", checkTogether);
+    return () => window.removeEventListener("chat-session-updated", checkTogether);
+  }, [player?.currentTrack]);
+
+  const isPlaying = !!player?.isPlaying;
+  const currentTrack = player?.currentTrack;
+  const hasMusic = !!currentTrack;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (togetherChar && onOpenMusicTogether) {
+      onOpenMusicTogether();
+    } else if (player) {
+      player.openFullPlayer();
+    }
+  };
+
+  return (
+    <div
+      className={`status-island ${hasMusic ? "status-island-music" : ""} ${togetherChar ? "status-island-together" : ""}`}
+      onClick={hasMusic ? handleClick : undefined}
+      title={togetherChar ? `与 ${togetherChar.name} 一起听歌（点击打开同听台）` : hasMusic ? `${currentTrack?.title} - ${currentTrack?.artist || ""}（点击展开播放器）` : undefined}
+      style={{ cursor: hasMusic ? "pointer" : "default" }}
+    >
+      {hasMusic ? (
+        <div className="status-island-content flex items-center justify-between w-full h-full px-2 gap-1.5 overflow-hidden text-white select-none">
+          <div className="flex items-center gap-1.5 shrink-0 overflow-hidden max-w-[80px]">
+            {togetherChar ? (
+              <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 ring-1 ring-pink-400 bg-pink-700 flex items-center justify-center text-[8px] font-bold text-white">
+                {togetherChar.avatar ? <img src={togetherChar.avatar} alt="" className="w-full h-full object-cover" /> : togetherChar.name.slice(0, 1)}
+              </div>
+            ) : currentTrack?.coverUrl ? (
+              <img src={currentTrack.coverUrl} alt="" className={`w-4 h-4 rounded-full object-cover shrink-0 ${isPlaying ? "animate-spin" : ""}`} style={{ animationDuration: "4s" }} />
+            ) : (
+              <span className="text-[11px] text-pink-400 shrink-0">♪</span>
+            )}
+            <span className="text-[10px] font-medium truncate text-white/90 leading-none">
+              {togetherChar ? togetherChar.name : (currentTrack?.title || "正在播放")}
+            </span>
+          </div>
+          <div className="flex items-center gap-0.5 shrink-0 pl-0.5">
+            <span className={`w-0.5 rounded-full bg-pink-400 transition-all ${isPlaying ? "h-2.5 animate-pulse" : "h-1"}`} />
+            <span className={`w-0.5 rounded-full bg-pink-300 transition-all ${isPlaying ? "h-3.5 animate-bounce" : "h-1.5"}`} style={{ animationDelay: "0.15s" }} />
+            <span className={`w-0.5 rounded-full bg-pink-500 transition-all ${isPlaying ? "h-2 animate-pulse" : "h-1"}`} style={{ animationDelay: "0.3s" }} />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function collectCssOverrides(profile: ThemeProfile): Record<string, string> {
@@ -4197,7 +4273,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
 
               <header className="phone-status-bar">
                 <StatusClock />
-                <div className="status-island" />
+                <StatusDynamicIsland onOpenMusicTogether={() => setShowIslandTogetherModal(true)} />
                 <div className="status-right" aria-hidden>
                   <svg viewBox="0 0 72 51" className="status-signal" fill="currentColor">
                     <path d="M11.6,41.9c0,1.4,0,2.8,0,4.3c0,2.3-1.4,3.7-3.6,3.8c-1.5,0.1-3,0.1-4.4,0c-1.9-0.1-3.2-1.2-3.4-3c-0.3-3.4-0.2-6.8,0-10.1c0.1-1.8,1.5-3,3.3-3.1c1.5-0.1,3-0.1,4.4,0c2.2,0.1,3.6,1.5,3.7,3.8C11.6,39,11.6,40.5,11.6,41.9z" />
@@ -5066,6 +5142,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
           </div>
         </div>
       </section>
+      {/* 灵动岛点击一起听弹出的双人美化与换歌弹窗 */}
+      {showIslandTogetherModal && (
+        <ListenTogetherPickerModal
+          onClose={() => setShowIslandTogetherModal(false)}
+        />
+      )}
       {/* 微信云同步过程可视化：拉取/上传/运行包同步与失败都在这里冒 toast */}
       <WeixinSyncToast />
     </>
