@@ -1132,7 +1132,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
     const [customPlusActions, setCustomPlusActions] = useState<RegisteredCustomAppChatPlusAction[]>(() => loadCustomAppChatPlusActions());
     const [activeCustomChatPlus, setActiveCustomChatPlus] = useState<ActiveCustomChatPlus | null>(null);
     const [showSettings, setShowSettings] = useState(false);
-    const [showCharacterProfile, setShowCharacterProfile] = useState(false);
+    const [activeProfileCharacter, setActiveProfileCharacter] = useState<Character | null>(null);
     const [showVoiceCall, setShowVoiceCall] = useState(false);
     const [showVideoCall, setShowVideoCall] = useState(false);
     const [callMinimized, setCallMinimized] = useState(false);
@@ -5085,6 +5085,17 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                 >多选</button>
                 <button
                     onClick={() => {
+                        closeContextMenu();
+                        const retracted = retractChatMessage(storedMessageId, msg.role === "user" ? "user" : "character");
+                        if (retracted) {
+                            setMessages(prev => prev.map(m => m.id === storedMessageId ? retracted : m));
+                            showChatToast("消息已撤回");
+                        }
+                    }}
+                    className="ctx-menu-btn text-amber-500 font-medium"
+                >撤回</button>
+                <button
+                    onClick={() => {
                         handleDeleteMessage(storedMessageId);
                         closeContextMenu();
                     }}
@@ -5976,24 +5987,12 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                                         {activeMessageId === msg.id && renderSystemContextMenu(msg)}
                                     </div>
                                 ) : msg.isRetracted ? (
-                                    <div
-                                        onPointerDown={(e) => { e.stopPropagation(); handleMessagePointerDown(e, msg.id); }}
-                                        onPointerUp={(e) => handleMessagePointerUp(e)}
-                                        onPointerCancel={handleMessagePointerCancel}
-                                        onPointerLeave={handleMessagePointerCancel}
-                                        onPointerMove={(e) => {
-                                            if (startPosRef.current) {
-                                                const dx = Math.abs(e.clientX - startPosRef.current.x);
-                                                const dy = Math.abs(e.clientY - startPosRef.current.y);
-                                                if (dx > 10 || dy > 10) handleMessagePointerCancel();
-                                            }
-                                        }}
-                                        onContextMenu={(e) => { e.preventDefault(); openMessageContextMenu(msg.id, { x: e.clientX, y: e.clientY }); }}
-                                        className="chat-sys-msg mx-auto relative cursor-pointer"
-                                        {...(activeMessageId === msg.id ? { "data-active": "" } : {})}
-                                    >
-                                        {msg.role === "user" ? "你" : (character?.name || "对方")}撤回了一条消息
-                                        {activeMessageId === msg.id && renderDeleteOnlyContextMenu(() => handleDeleteMessage(getStoredActionMessageId(msg)), () => startMultiSelectFromMessage(msg))}
+                                    <div className="w-full flex justify-center">
+                                        <MessageBubble
+                                            msg={msg}
+                                            charName={character?.name}
+                                            userName={userIdentity?.name || "你"}
+                                        />
                                     </div>
                                 ) : (
                                     <>
@@ -6034,12 +6033,23 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                                                             : character;
                                                         return (
                                                             <>
-                                                    <div onDoubleClick={() => {
-                                                        const targetChar = session.isGroup && msg.senderCharacterId
-                                                            ? groupCharMap.get(msg.senderCharacterId) || character
-                                                            : character;
-                                                        if (targetChar) sendRichMessage("poke", { pokeTarget: targetChar.name });
-                                                    }} className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden cursor-pointer">
+                                                    <div
+                                                        onClick={() => {
+                                                            const targetChar = session.isGroup && msg.senderCharacterId
+                                                                ? groupCharMap.get(msg.senderCharacterId) || character
+                                                                : character;
+                                                            if (targetChar) setActiveProfileCharacter(targetChar);
+                                                        }}
+                                                        onDoubleClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const targetChar = session.isGroup && msg.senderCharacterId
+                                                                ? groupCharMap.get(msg.senderCharacterId) || character
+                                                                : character;
+                                                            if (targetChar) sendRichMessage("poke", { pokeTarget: targetChar.name });
+                                                        }}
+                                                        className="w-[40px] h-[40px] rounded-[20px] bg-[var(--c-input)] overflow-hidden cursor-pointer hover:opacity-85 active:scale-95 transition-transform shadow-xs"
+                                                        title={`点击查看 ${senderChar?.name || "角色"} 的个人主页，双击拍一拍`}
+                                                    >
                                                         {senderChar?.avatar ? (
                                                             <img src={senderChar.avatar} className="w-full h-full object-cover" alt="" />
                                                         ) : (
@@ -7043,24 +7053,24 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
             )}
 
             {/* 角色个人主页（Threads / X 混合轻奢风格） */}
-            {showCharacterProfile && character && (
+            {activeProfileCharacter && (
                 <CharacterProfilePage
-                    character={character}
+                    character={activeProfileCharacter}
                     session={session}
-                    onBack={() => setShowCharacterProfile(false)}
-                    onStartChat={() => setShowCharacterProfile(false)}
+                    onBack={() => setActiveProfileCharacter(null)}
+                    onStartChat={() => setActiveProfileCharacter(null)}
                     onVoiceCall={() => {
-                        setShowCharacterProfile(false);
+                        setActiveProfileCharacter(null);
                         setCallInitiator("user");
                         setShowVoiceCall(true);
                     }}
                     onVideoCall={() => {
-                        setShowCharacterProfile(false);
+                        setActiveProfileCharacter(null);
                         setCallInitiator("user");
                         setShowVideoCall(true);
                     }}
                     onPlayMusic={(query) => {
-                        setShowCharacterProfile(false);
+                        setActiveProfileCharacter(null);
                         void playMusicByQuery(query);
                     }}
                 />

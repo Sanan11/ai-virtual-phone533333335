@@ -186,8 +186,12 @@ export function ChatMessageList({ onCloseApp, activeSession, onSelectSession, on
                         <button className="page-back-btn shrink-0 mr-2" type="button" onClick={onCloseApp} aria-label="返回">
                             <ChevronLeft size={24} strokeWidth={1.5} />
                         </button>
-                        <div className="flex items-center gap-[10px]">
-                            <div className="w-[36px] h-[36px] rounded-full overflow-hidden bg-[var(--c-input)] flex items-center justify-center shrink-0">
+                        <div
+                            className="flex items-center gap-[10px] cursor-pointer hover:opacity-85 active:scale-98 transition-transform select-none"
+                            onClick={() => setShowUserProfile(true)}
+                            title="点击查看个人主页与设置"
+                        >
+                            <div className="w-[36px] h-[36px] rounded-full overflow-hidden bg-[var(--c-input)] flex items-center justify-center shrink-0 shadow-sm">
                                 {identity?.avatarUrl ? (
                                     <img src={identity.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (

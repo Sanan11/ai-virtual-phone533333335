@@ -31,6 +31,10 @@ export function ListenTogetherPickerModal({
         loadAllTracks().then(tracks => {
             setLocalTracks(tracks);
             setLoadingLocal(false);
+            // 如果本地没有上传歌曲，但配置了网易云 API，自动切换至在线曲库搜索，避免用户看到空白
+            if (tracks.length === 0 && isNeteaseConfigured()) {
+                setActiveTab("search");
+            }
         });
     }, []);
 
@@ -135,9 +139,21 @@ export function ListenTogetherPickerModal({
                                 <span>正在载入音乐库...</span>
                             </div>
                         ) : localTracks.length === 0 ? (
-                            <div className="py-12 flex flex-col items-center justify-center text-xs text-[var(--c-text-sub)] gap-2">
-                                <Music size={26} strokeWidth={1.5} className="opacity-40" />
-                                <span>音乐库空空如也，可在「音乐」App 中添加音频</span>
+                            <div className="py-10 flex flex-col items-center justify-center text-xs text-[var(--c-text-sub)] gap-2.5">
+                                <Music size={28} strokeWidth={1.5} className="opacity-40" />
+                                <span>本地音乐库空空如也</span>
+                                {hasNetease ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab("search")}
+                                        className="mt-1 px-3 py-1.5 rounded-full bg-[var(--c-primary)] text-white text-xs font-semibold hover:opacity-90 active:scale-95 shadow-sm flex items-center gap-1.5"
+                                    >
+                                        <Search size={13} />
+                                        <span>去在线曲库搜索歌曲</span>
+                                    </button>
+                                ) : (
+                                    <span className="text-[11px] opacity-75">可在桌面「音乐」App 中添加音频或配置网易云曲库</span>
+                                )}
                             </div>
                         ) : (
                             localTracks.map(t => (
