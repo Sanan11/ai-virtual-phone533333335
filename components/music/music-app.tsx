@@ -25,6 +25,9 @@ import {
     type NeteaseDjRadio, type NeteaseDjProgram, type NeteaseAlbumSub, type NeteaseUserEvent,
 } from "@/lib/music-service";
 import { clearMusicCloudSyncData } from "@/lib/chat-engine";
+
+const MUSIC_DM_STORAGE_KEY = "music-private-messages-v1";
+type MusicDm = { id: string; name: string; avatar?: string; preview: string; updatedAt: string; unread?: number };
 import MusicCommentsPage from "./music-comments";
 import {
     loadMusicBg, saveMusicBg, clearMusicBg, fileToCompressedDataUrl, appBgStyle,
@@ -32,7 +35,7 @@ import {
 } from "@/lib/music-bg";
 
 type Props = { onClose: () => void };
-type TabId = "recommend" | "mine" | "search" | "local";
+type TabId = "recommend" | "mine" | "search" | "local" | "messages";
 
 export default function MusicApp({ onClose }: Props) {
     const [tracks, setTracks] = useState<MusicTrack[]>([]);
@@ -47,6 +50,7 @@ export default function MusicApp({ onClose }: Props) {
     const [playlists, setPlaylists] = useState<NeteasePlaylist[]>([]);
     const [playlistsLoading, setPlaylistsLoading] = useState(true);
     const [musicToast, setMusicToast] = useState<string | null>(null);
+    const [musicDms, setMusicDms] = useState<MusicDm[]>([]);
     const [pendingPlayTrackId, setPendingPlayTrackId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const musicToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,6 +73,13 @@ export default function MusicApp({ onClose }: Props) {
             });
         }, ms));
         return () => timers.forEach(clearTimeout);
+    }, []);
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(MUSIC_DM_STORAGE_KEY);
+            if (saved) setMusicDms(JSON.parse(saved));
+        } catch {}
     }, []);
 
     useEffect(() => {
@@ -382,6 +393,19 @@ export default function MusicApp({ onClose }: Props) {
                 </>
             )}
 
+            {tab === "messages" && (
+                <MusicMessagesTab
+                    messages={musicDms}
+                    onOpen={(id) => {
+                        setMusicDms(prev => {
+                            const next = prev.map(item => item.id === id ? { ...item, unread: 0 } : item);
+                            try { localStorage.setItem(MUSIC_DM_STORAGE_KEY, JSON.stringify(next)); } catch {}
+                            return next;
+                        });
+                    }}
+                />
+            )}
+
             {tab === "search" && hasNetease && (
                 <OnlineSearchTab player={player} formatTime={formatTime} onPlayNetease={handlePlayNetease} />
             )}
@@ -477,6 +501,10 @@ export default function MusicApp({ onClose }: Props) {
                         <span>我的</span>
                     </button>
                 )}
+                <button className="music-tabbar-item" {...(tab === "messages" ? { "data-active": "" } : {})} onClick={() => setTab("messages")}>
+                    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4 2v-5.5A7.5 7.5 0 0 1 11.5 8H20z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>
+                    <span>私信</span>
+                </button>
                 <button className="music-tabbar-item" {...(tab === "local" ? { "data-active": "" } : {})} onClick={() => { setTab("local"); setActivePlaylist(null); }}>
                     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
                     <span>本地</span>
@@ -506,6 +534,38 @@ export default function MusicApp({ onClose }: Props) {
 }
 
 // ── Recommend Tab (home) ──
+
+
+function MusicMessagesTab({ messages, onOpen }: { messages: MusicDm[]; onOpen: (id: string) => void }) {
+    const [active, setActive] = useState<MusicDm | null>(null);
+    if (active) {
+        return (
+            <div className="music-dm-page">
+                <button className="music-dm-back" onClick={() => setActive(null)}>‹ 私信</button>
+                <div className="music-dm-head">
+                    <div className="music-dm-avatar">{active.avatar ? <img src={active.avatar} alt="" /> : active.name.slice(0, 1)}</div>
+                    <div><b>{active.name}</b><span>音乐私信</span></div>
+                </div>
+                <div className="music-dm-empty">这里是音乐 App 的私信。<br/>一起听、换歌、音乐邀请都只会出现在这里，<br/>不会出现在 LINE 聊天列表。</div>
+                <div className="music-dm-compose">输入消息…</div>
+            </div>
+        );
+    }
+    return (
+        <div className="music-dm-page">
+            <div className="music-dm-title">私信</div>
+            {messages.length === 0 ? (
+                <div className="music-empty"><div className="music-empty-icon">♪</div><div className="music-empty-text">还没有音乐私信</div></div>
+            ) : messages.map(item => (
+                <button key={item.id} className="music-dm-row" onClick={() => { onOpen(item.id); setActive(item); }}>
+                    <div className="music-dm-avatar">{item.avatar ? <img src={item.avatar} alt="" /> : item.name.slice(0, 1)}</div>
+                    <div className="music-dm-info"><b>{item.name}</b><span>{item.preview}</span></div>
+                    <div className="music-dm-meta">{item.unread ? <i>{item.unread}</i> : null}<small>{new Date(item.updatedAt).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}</small></div>
+                </button>
+            ))}
+        </div>
+    );
+}
 
 function greetingByHour(): { hello: string; sub: string } {
     const h = new Date().getHours();
