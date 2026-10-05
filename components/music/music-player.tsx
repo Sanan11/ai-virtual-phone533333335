@@ -800,9 +800,9 @@ export default function MusicPlayer() {
 
             {/* Invite Character Together Overlay */}
             {showInviteModal && (
-                <div className="modal-overlay z-[160] fixed inset-0 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in" onClick={() => setShowInviteModal(false)}>
+                <div className="modal-overlay z-[160] absolute inset-0 flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4 animate-in fade-in" onClick={() => setShowInviteModal(false)}>
                     <div
-                        className="relative max-w-xs w-full max-h-[75vh] flex flex-col p-0 rounded-3xl bg-[#1c1a24]/95 border border-white/15 shadow-2xl overflow-hidden select-none text-white backdrop-blur-xl"
+                        className="relative max-w-xs w-full max-h-[70%] flex flex-col p-0 rounded-3xl bg-[#1c1a24]/95 border border-white/15 shadow-2xl overflow-hidden select-none text-white backdrop-blur-xl"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-3.5 border-b border-[var(--c-border,#333)] flex items-center justify-between">

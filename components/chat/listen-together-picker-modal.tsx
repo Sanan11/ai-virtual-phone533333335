@@ -143,12 +143,12 @@ export function ListenTogetherPickerModal({
     const isPlaying = !!player?.isPlaying;
 
     return (
-        <div className="modal-overlay fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in select-none" onClick={onClose}>
+        <div className="modal-overlay absolute inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-md p-3 sm:p-4 animate-in fade-in select-none" onClick={onClose}>
             {/* 动态注入自定义 CSS */}
             {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
 
             <div
-                className="together-modal-content relative w-full max-w-[360px] h-[580px] rounded-[32px] overflow-hidden bg-gradient-to-b from-[#2c223b] via-[#1a1429] to-[#120e1e] text-white shadow-2xl border border-white/10 flex flex-col justify-between p-5 transition-all duration-300"
+                className="together-modal-content relative w-full max-w-[340px] max-h-[88%] h-[530px] rounded-[28px] overflow-hidden bg-gradient-to-b from-[#2c223b] via-[#1a1429] to-[#120e1e] text-white shadow-2xl border border-white/10 flex flex-col justify-between p-4 sm:p-5 transition-all duration-300"
                 onClick={e => e.stopPropagation()}
             >
                 {/* 顶栏控制 */}

@@ -113,15 +113,18 @@ export function CharacterProfilePage({
 
     return (
         <div className="character-profile-page absolute inset-0 z-50 flex flex-col bg-[var(--c-bg,#fff)] text-[var(--c-text-title,#111)] overflow-y-auto select-none">
-            {/* 顶栏：紧凑自适应手机视口 */}
-            <div className="sticky top-0 z-30 flex items-center justify-between px-3.5 py-2.5 bg-[var(--c-bg)]/85 backdrop-blur-md border-b border-[var(--c-border)]/50 shrink-0">
+            {/* 顶栏：紧凑自适应手机视口，适配状态栏避让高度 */}
+            <div className="sticky top-0 z-40 flex items-center justify-between px-3.5 pb-2.5 pt-[calc(var(--status-bar-top,12px)+var(--status-bar-height,36px))] bg-[var(--c-bg)]/90 backdrop-blur-md border-b border-[var(--c-border)]/50 shrink-0">
                 <button
                     type="button"
-                    className="p-1.5 rounded-full hover:bg-[var(--c-input)] transition-colors text-[var(--c-text)]"
-                    onClick={onBack}
+                    className="p-2 -ml-1 rounded-full hover:bg-[var(--c-input)] active:scale-95 transition-all text-[var(--c-text-title)] relative z-50 cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onBack();
+                    }}
                     aria-label="返回"
                 >
-                    <ChevronLeft size={22} />
+                    <ChevronLeft size={24} strokeWidth={2.2} />
                 </button>
                 <span className="text-xs font-semibold tracking-wide text-[var(--c-text-sub)] truncate max-w-[160px]">
                     @{displayId}
