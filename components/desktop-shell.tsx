@@ -1160,7 +1160,6 @@ const MusicShellOverlays = memo(function MusicShellOverlays({
   return (
     <>
       {musicPlayer?.showFullPlayer && musicPlayer.currentTrack && <MusicPlayer />}
-      <MusicFloat hidden={activeApp === "music" || musicPlayer?.showFullPlayer} />
     </>
   );
 });
