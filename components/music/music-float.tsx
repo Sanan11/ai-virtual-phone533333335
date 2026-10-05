@@ -37,6 +37,7 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
     });
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [expanded, setExpanded] = useState(false);
+    const [isIslandExpanded, setIsIslandExpanded] = useState(false);
     const [dismissing, setDismissing] = useState(false);
 
     const clampPos = useCallback((x: number, y: number) => {
@@ -68,6 +69,24 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
     useEffect(() => () => {
         if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     }, []);
+    useEffect(() => {
+        const handleIslandToggle = () => setIsIslandExpanded(prev => !prev);
+        window.addEventListener("music-island-toggle", handleIslandToggle);
+        return () => window.removeEventListener("music-island-toggle", handleIslandToggle);
+    }, []);
+
+    useEffect(() => {
+        if (!isIslandExpanded) return;
+        const close = (event: MouseEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (target?.closest(".status-island") || target?.closest(".music-float")) return;
+            setIsIslandExpanded(false);
+        };
+        document.addEventListener("click", close, true);
+        return () => document.removeEventListener("click", close, true);
+    }, [isIslandExpanded]);
+
+
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
@@ -148,6 +167,7 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
 
         if (!d.moved && player) {
             if (d.startedOnInfo) {
+                setIsIslandExpanded(false);
                 player.openFullPlayer();
                 return;
             }
@@ -162,7 +182,7 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
     const handlePointerUp = useCallback((e: React.PointerEvent) => finishPointer(e), [finishPointer]);
     const handlePointerCancel = useCallback((e: React.PointerEvent) => finishPointer(e), [finishPointer]);
 
-    if (!player || !player.currentTrack || hidden || player.floatDismissed) return null;
+    if (!player || !player.currentTrack || hidden || player.floatDismissed || !isIslandExpanded) return null;
 
     const track = player.currentTrack;
 
@@ -172,8 +192,8 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
             className="music-float"
             {...(expanded ? { "data-expanded": "" } : {})}
             {...(dismissing ? { "data-dismissing": "" } : {})}
-            style={{ left: pos.x, top: pos.y }}
-            onPointerDown={handlePointerDown}
+            style={{ left: "50%", top: 44, transform: "translateX(-50%)" }}
+            onPointerDown={(e) => { e.stopPropagation(); handlePointerDown(e); }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
