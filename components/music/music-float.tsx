@@ -166,16 +166,9 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
         }
 
         if (!d.moved && player) {
-            if (d.startedOnInfo) {
-                setIsIslandExpanded(false);
-                player.openFullPlayer();
-                return;
-            }
-
-            setExpanded(prev => {
-                requestAnimationFrame(() => setPos(p => clampPos(p.x, p.y)));
-                return !prev;
-            });
+            // The Dynamic Island expansion is intentionally not a gateway to the full Music app.
+            // Full player remains accessible from the Music app's own now-playing bar.
+            setExpanded(prev => !prev);
         }
     }, [player, clampPos, dismissFloat]);
 
