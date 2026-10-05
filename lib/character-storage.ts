@@ -121,6 +121,15 @@ function isValidCharacter(x: unknown): x is Character {
   );
 }
 
+export function updateCharacter(char: Character): void {
+  const chars = loadCharacters();
+  const idx = chars.findIndex((c) => c.id === char.id);
+  if (idx !== -1) {
+    chars[idx] = { ...char, updatedAt: new Date().toISOString() };
+    saveCharacters(chars);
+  }
+}
+
 export function createCharacter(
   data: Omit<Character, "id" | "createdAt" | "updatedAt" | "wechatID"> & { wechatID?: string }
 ): Character {
