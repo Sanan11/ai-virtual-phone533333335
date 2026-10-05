@@ -4936,3 +4936,124 @@
     font-size: calc(9px*var(--app-text-scale,1));
     color: color-mix(in srgb, var(--c-music-text) 55%, transparent);
 }
+
+
+/* ── Music private messages: isolated from LINE/chat storage ── */
+.music-dm-page {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 8px 16px 100px;
+}
+.music-dm-title {
+    font-size: 24px;
+    font-weight: 700;
+    padding: 8px 4px 18px;
+    color: var(--c-music-text);
+}
+.music-dm-back {
+    border: 0;
+    background: none;
+    color: var(--c-music-accent);
+    font: inherit;
+    padding: 6px 2px 14px;
+    cursor: pointer;
+}
+.music-dm-head {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 4px 18px;
+    border-bottom: 1px solid var(--c-music-surface-solid);
+}
+.music-dm-head > div:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.music-dm-head span {
+    font-size: 10px;
+    opacity: .5;
+}
+.music-dm-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--c-music-surface-solid);
+    color: var(--c-music-accent);
+    font-weight: 650;
+}
+.music-dm-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.music-dm-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 13px 4px;
+    border: 0;
+    border-bottom: 1px solid var(--c-music-surface-solid);
+    background: transparent;
+    text-align: left;
+    color: var(--c-music-text);
+    cursor: pointer;
+}
+.music-dm-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.music-dm-info span {
+    font-size: 10px;
+    opacity: .55;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.music-dm-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+.music-dm-meta small { opacity: .45; }
+.music-dm-meta i {
+    min-width: 17px;
+    height: 17px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ff4d67;
+    color: #fff;
+    font-size: 9px;
+    font-style: normal;
+}
+.music-dm-empty {
+    margin: 22px 0;
+    padding: 18px;
+    border-radius: 18px;
+    background: var(--c-music-surface);
+    color: var(--c-music-accent);
+    text-align: center;
+    line-height: 1.7;
+    font-size: 11px;
+}
+.music-dm-compose {
+    margin-top: auto;
+    padding: 12px 15px;
+    border-radius: 18px;
+    background: var(--c-music-surface-solid);
+    color: var(--c-music-accent);
+    font-size: 11px;
+}
