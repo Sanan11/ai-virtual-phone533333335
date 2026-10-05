@@ -195,6 +195,7 @@
   width: 148px;
   background: #08080a;
   border: 0.5px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
 }
 
 .status-island-together {
@@ -1489,31 +1490,34 @@
 }
 .status-island.status-island-expanded {
   width: min(300px, calc(var(--phone-screen-width) - 32px));
-  height: auto;
+  height: 126px;
   min-height: 36px;
-  border-radius: 20px 20px 24px 24px;
+  border-radius: 20px;
   align-items: flex-start;
   justify-content: flex-start;
-  box-shadow:
-    0 18px 42px rgba(0,0,0,.32),
-    0 5px 18px rgba(0,0,0,.18);
+  overflow: hidden;
+  box-shadow: 0 18px 42px rgba(0,0,0,.32), 0 5px 18px rgba(0,0,0,.18);
 }
 .status-island.status-island-expanded .status-island-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 36px;
+  z-index: 2;
 }
 .status-island-music-panel {
   position: absolute;
   top: 36px;
   left: 0;
   right: 0;
-  padding: 11px 12px 12px;
-  border-radius: 0 0 24px 24px;
+  bottom: 0;
+  padding: 10px 12px 11px;
+  border-radius: 0;
   background: #08080a;
-  border: 0.5px solid rgba(255,255,255,.12);
-  border-top: 0;
+  border: 0;
   color: #fff;
   box-sizing: border-box;
-  box-shadow: 0 18px 42px rgba(0,0,0,.32);
   animation: status-island-music-expand .2s ease-out;
   cursor: default;
 }
@@ -1522,10 +1526,10 @@
   align-items: center;
   gap: 11px;
 }
-.status-island-music-cover {
-  width: 52px;
-  height: 52px;
-  flex: 0 0 52px;
+ .status-island-music-cover {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   border-radius: 12px;
   overflow: hidden;
   display: grid;
@@ -1565,7 +1569,7 @@
 }
 .status-island-music-progress {
   height: 4px;
-  margin-top: 13px;
+  margin-top: 8px;
   border-radius: 99px;
   background: rgba(255,255,255,.13);
   overflow: hidden;
@@ -1590,8 +1594,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 24px;
-  margin-top: 9px;
+  gap: 18px;
+  margin-top: 6px;
 }
 .status-island-music-controls button {
   width: 30px;
