@@ -2751,8 +2751,8 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
 
     const hasKnownGroupSenderPrefix = (text: string) => {
         return groupCharacters.some((groupCharacter) => {
-            const escapedName = groupCharacter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            return new RegExp(`^\\[${escapedName}\\]\s*[:：]\s*`, "m").test(text);
+            const escapedName = groupCharacter.name.replace(/[.*+?^${}()|[\]\\]/g, (ch) => "\\" + ch);
+            return new RegExp(`^\\[${escapedName}\\]\\s*[:：]\\s*`, "m").test(text);
         });
     };
 
@@ -5523,32 +5523,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                 className="chat-plugin-header chat-room-main-pane"
             />
 
-            {/* 一起听音乐挂件（网易云/QQ音乐同款） */}
-            {!session.isGroup && musicPlayer?.currentTrack && (
-                <div className="mx-4 mt-1.5 px-3 py-1.5 rounded-full bg-[var(--c-card)]/90 backdrop-blur-md border border-[var(--c-border)] shadow-xs flex items-center justify-between text-xs z-10 animate-in fade-in">
-                    <div className="flex items-center gap-2 overflow-hidden flex-1 mr-2">
-                        <div className="w-5 h-5 rounded-full bg-black/80 flex items-center justify-center shrink-0 animate-spin text-[10px] text-white" style={{ animationDuration: '4s' }}>
-                            💿
-                        </div>
-                        <div className="flex items-baseline gap-1.5 truncate">
-                            <span className="text-[11px] text-[var(--c-primary)] font-medium shrink-0">与 {character?.name || "TA"} 一起听:</span>
-                            <span className="font-semibold truncate text-[var(--c-text-title)]">{musicPlayer.currentTrack.title}</span>
-                            {musicPlayer.currentTrack.artist && (
-                                <span className="text-[10px] text-[var(--c-text-sub)] truncate">- {musicPlayer.currentTrack.artist}</span>
-                            )}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <button
-                            type="button"
-                            onClick={() => musicPlayer.togglePlay()}
-                            className="text-[11px] text-[var(--c-primary)] font-medium hover:underline"
-                        >
-                            {musicPlayer.isPlaying ? "暂停" : "播放"}
-                        </button>
-                    </div>
-                </div>
-            )}
+
 
             {/* Message List */}
             <div
