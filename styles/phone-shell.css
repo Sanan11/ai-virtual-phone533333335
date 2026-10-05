@@ -1478,3 +1478,143 @@
 .folder-dots .dot.active {
   background: color-mix(in srgb, var(--c-home-label, #ffffff) 85%, transparent);
 }
+
+
+/* ── Unified music Dynamic Island ──
+   The music controls are part of the island itself; there is no second floating card. */
+.status-island.status-island-music {
+  overflow: visible;
+  transform-origin: top center;
+  z-index: 100;
+}
+.status-island.status-island-expanded {
+  width: min(342px, calc(100vw - 28px));
+  height: auto;
+  min-height: 36px;
+  border-radius: 20px 20px 24px 24px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  box-shadow:
+    0 18px 42px rgba(0,0,0,.32),
+    0 5px 18px rgba(0,0,0,.18);
+}
+.status-island.status-island-expanded .status-island-content {
+  height: 36px;
+}
+.status-island-music-panel {
+  position: absolute;
+  top: 36px;
+  left: 0;
+  right: 0;
+  padding: 13px 14px 15px;
+  border-radius: 0 0 24px 24px;
+  background: #08080a;
+  border: 0.5px solid rgba(255,255,255,.12);
+  border-top: 0;
+  color: #fff;
+  box-sizing: border-box;
+  box-shadow: 0 18px 42px rgba(0,0,0,.32);
+  animation: status-island-music-expand .2s ease-out;
+  cursor: default;
+}
+.status-island-music-main {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.status-island-music-cover {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,.08);
+  font-size: 20px;
+}
+.status-island-music-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.status-island-music-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.status-island-music-meta strong,
+.status-island-music-meta span,
+.status-island-music-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-island-music-meta strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+.status-island-music-meta span {
+  font-size: 10px;
+  color: rgba(255,255,255,.58);
+}
+.status-island-music-meta small {
+  font-size: 9px;
+  color: rgba(255,126,179,.8);
+}
+.status-island-music-progress {
+  height: 4px;
+  margin-top: 13px;
+  border-radius: 99px;
+  background: rgba(255,255,255,.13);
+  overflow: hidden;
+  cursor: pointer;
+}
+.status-island-music-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg,#ff7eb3,#f3a8c8);
+  transition: width .15s linear;
+}
+.status-island-music-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: rgba(255,255,255,.4);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.status-island-music-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  margin-top: 9px;
+}
+.status-island-music-controls button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255,255,255,.8);
+  font: inherit;
+  cursor: pointer;
+}
+.status-island-music-controls button:active {
+  transform: scale(.9);
+}
+.status-island-music-controls button.play {
+  width: 36px;
+  height: 36px;
+  background: #fff;
+  color: #08080a;
+  font-size: 13px;
+}
+@keyframes status-island-music-expand {
+  from { opacity: 0; transform: translateY(-3px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
