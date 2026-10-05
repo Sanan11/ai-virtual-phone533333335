@@ -2751,7 +2751,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
 
     const hasKnownGroupSenderPrefix = (text: string) => {
         return groupCharacters.some((groupCharacter) => {
-            const escapedName = groupCharacter.name.replace(/[.*+?^${()|[\]\\]/g, "\\$&");
+            const escapedName = groupCharacter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\const escapedName = groupCharacter.name.replace(/[.*+?^${()|[\]\\]/g, "\\$&");");
             return new RegExp(`^\\[${escapedName}\\]\\s*[:：]\\s*`, "m").test(text);
         });
     };
