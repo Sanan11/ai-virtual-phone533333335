@@ -1065,7 +1065,7 @@
 
 
 /* ══════════════════════════════════════════════════
-   Floating Widget — Rounded Rectangle Glassmorphism Player
+   Dynamic Island expansion — music controls live directly below the island
    ══════════════════════════════════════════════════ */
 
 .music-float {
@@ -1075,77 +1075,39 @@
     flex-direction: column;
     justify-content: center;
     touch-action: none;
-    cursor: grab;
+    cursor: default;
     user-select: none;
-    transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.25s ease-out, opacity 0.25s ease-out;
-    animation: music-float-in 0.5s var(--ease-out);
-
-    /* Layout */
-    width: 72px;
-    height: 72px;
-    border-radius: 36px;
-    overflow: hidden;
-
-    /* Glassmorphism Aesthetics */
-    background: var(--c-music-surface);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    box-shadow:
-        inset 0 1px 1px var(--c-music-surface-solid),
-        inset 0 -1px 1px var(--c-music-overlay),
-        0 8px 24px var(--c-music-accent-dim),
-        0 2px 8px var(--c-music-accent-dim);
-    border: 1px solid var(--c-music-surface);
-}
-
-.music-float[data-dismissing] {
-    transform: translateX(-120%) scale(0.8);
-    opacity: 0;
-    pointer-events: none;
-}
-
-.music-float[data-expanded] {
-    width: 260px;
-    height: 84px;
+    width: 342px;
+    max-width: calc(100% - 24px);
+    height: 92px;
     border-radius: 24px;
+    overflow: hidden;
+    background: rgba(14, 14, 18, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(28px) saturate(150%);
+    -webkit-backdrop-filter: blur(28px) saturate(150%);
+    box-shadow: 0 14px 34px rgba(0,0,0,.28), 0 4px 12px rgba(0,0,0,.18);
+    animation: music-float-in .24s ease-out;
 }
 
 .music-float-inner {
     display: flex;
     align-items: center;
-    width: 260px;
+    width: 100%;
     height: 100%;
-    padding: 0 12px;
+    padding: 10px 14px;
     box-sizing: border-box;
-    /* Center 56px cover in 72px outer (content area 70px after 1px border): (70-56)/2 = 7px */
-    padding-left: 7px;
-    transition: padding 0.3s;
+    gap: 12px;
 }
 
-.music-float[data-expanded] .music-float-inner {
-    padding-left: 12px;
-}
-
-/* ── Cover Art inside float (Mini Vinyl) ── */
 .music-float-cover-wrap {
-    width: 56px;
-    height: 56px;
+    width: 62px;
+    height: 62px;
     border-radius: 50%;
     flex-shrink: 0;
     position: relative;
-    cursor: pointer;
-    background: radial-gradient(circle,
-            var(--c-music-surface) 0%,
-            var(--c-music-glass-dim) 35%,
-            var(--c-music-glass-dim) 50%,
-            var(--c-music-glass-dim) 65%,
-            var(--c-music-surface) 100%);
-    box-shadow:
-        0 0 0 1px var(--c-music-accent-dim),
-        0 4px 12px var(--c-music-accent-dim),
-        inset 0 0 8px var(--c-music-surface-solid);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: #17171b;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 4px 14px rgba(0,0,0,.3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1158,99 +1120,87 @@
 .music-float-vinyl-groove {
     position: absolute;
     border-radius: 50%;
-    border: 0.5px solid var(--c-music-glass-dim);
+    border: .5px solid rgba(255,255,255,.09);
     pointer-events: none;
 }
 
-.music-float-vinyl-groove-1 {
-    inset: 15%;
-}
-
-.music-float-vinyl-groove-2 {
-    inset: 30%;
-}
+.music-float-vinyl-groove-1 { inset: 14%; }
+.music-float-vinyl-groove-2 { inset: 29%; }
 
 .music-float-vinyl-center {
-    width: 20px;
-    height: 20px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     overflow: hidden;
-    background: var(--c-music-surface);
+    background: #24242a;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: inset 0 0 4px var(--c-music-surface);
+    box-shadow: inset 0 0 6px rgba(255,255,255,.12);
     z-index: 2;
 }
 
-
-.music-float-cover-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--c-music-accent);
-    opacity: 0.6;
-}
-
-/* ── Info Area ── */
 .music-float-info {
-    margin: 0 12px;
+    margin: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    transform: translateX(-10px);
-    transition: opacity 0.3s, transform 0.3s;
-}
-
-.music-float[data-expanded] .music-float-info {
+    flex: 1;
+    min-width: 0;
     opacity: 1;
-    transform: translateX(0);
-    transition-delay: 0.1s;
+    transform: none;
 }
 
 .music-float-title {
-    font-size: calc(11.7px*var(--app-text-scale,1));
-    font-weight: 600;
-    letter-spacing: 0.3px;
+    font-size: 12px;
+    font-weight: 650;
+    color: rgba(255,255,255,.95);
 }
 
+.music-float-artist {
+    color: rgba(255,255,255,.52);
+    font-size: 10px;
+    margin-top: 5px;
+}
 
-/* ── Controls Area ── */
 .music-float-controls {
     display: flex;
     align-items: center;
     gap: 2px;
-    opacity: 0;
-    transform: translateX(10px);
-    transition: opacity 0.3s, transform 0.3s;
-}
-
-.music-float[data-expanded] .music-float-controls {
     opacity: 1;
-    transform: translateX(0);
-    transition-delay: 0.15s;
+    transform: none;
+    flex-shrink: 0;
 }
 
 .music-float-btn {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
+    color: rgba(255,255,255,.82);
 }
 
 .music-float-btn:active {
-    background: var(--c-music-accent-dim);
-    color: var(--c-music-accent);
-    transform: scale(0.9);
+    background: rgba(255,255,255,.1);
+    color: #fff;
+    transform: scale(.92);
 }
 
 .music-float-btn-play {
-    color: var(--c-music-accent);
+    width: 40px;
+    height: 40px;
+    color: #fff;
+    background: rgba(255,255,255,.12);
 }
 
+.music-float[data-dismissing] {
+    transform: translateX(-50%) translateY(-8px) scale(.96) !important;
+    opacity: 0;
+    pointer-events: none;
+}
 
+@keyframes music-float-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(.96); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
 
 /* ══════════════════════════════════
    Animations
