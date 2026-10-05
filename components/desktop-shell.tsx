@@ -14,9 +14,7 @@ import { PhoneChatApp } from "@/components/chat/phone-chat-app";
 import { PhonePlaceholderApp } from "@/components/phone-placeholder-app";
 import MusicApp from "@/components/music/music-app";
 import MusicPlayer from "@/components/music/music-player";
-import MusicFloat from "@/components/music/music-float";
 import MiniAppWindow from "@/components/music/mini-app-window";
-import TogetherListenCard from "@/components/music/together-listen-card";
 import { PhoneCalendarApp } from "@/components/calendar-app";
 import { PhoneQaApp } from "@/components/phone-qa-app";
 import { ChatPluginPageBoundary } from "@/components/chat/chat-plugin-page-boundary";
@@ -33,7 +31,7 @@ import MapApp from "@/components/map/map-app";
 import { DwellingApp } from "@/components/dwelling/dwelling-app";
 import { MascotFloat } from "@/components/mascot/mascot-float";
 import { MascotPreviewHost } from "@/components/mascot/mascot-preview-host";
-import { useMusicControlsOptional } from "@/lib/music-context";
+import { useMusicControlsOptional, useMusicPlayerOptional } from "@/lib/music-context";
 import { PhoneResourcesApp, type ResourceSubPage } from "@/components/phone-resources-app";
 import { CheckPhoneApp } from "@/components/checkphone/checkphone-app";
 import { ShoppingApp } from "@/components/shopping/shopping-app";
@@ -144,7 +142,6 @@ import { sendBrowserNotification } from "@/lib/browser-notification";
 import type { ChatSharePayload } from "@/lib/chat-share";
 import { completePendingMcpOAuthCallback } from "@/lib/tool-executor";
 import { LayoutGrid, LoaderCircle, RefreshCw } from "lucide-react";
-import { ListenTogetherPickerModal } from "@/components/chat/listen-together-picker-modal";
 
 const EMOJI_FONTS = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla"';
 
@@ -619,64 +616,21 @@ function StatusClock() {
 }
 
 /** 灵动岛点击「一起听」后的双人同听台：补齐角色信息与选歌回调（原先两个必填 props 缺失，点歌会直接报错） */
-function IslandTogetherModal({ onClose }: { onClose: () => void }) {
-  const player = useMusicControlsOptional();
-  const together = useMemo(() => {
-    try {
-      const track = player?.currentTrack;
-      const sess = loadChatSessions().find(
-        s => s.listenTogetherTrack && (!track || s.listenTogetherTrack.id === track.id || s.listenTogetherTrack.name === track.title),
-      );
-      const found = sess ? loadCharacters().find(c => c.id === sess.contactId) : null;
-      return found ? { name: found.name, avatar: found.avatar || undefined } : null;
-    } catch {
-      return null;
-    }
-  }, [player?.currentTrack]);
-
-  return (
-    <ListenTogetherPickerModal
-      characterName={together?.name || "TA"}
-      characterAvatar={together?.avatar}
-      onClose={onClose}
-      onSelectTrack={async (t) => {
-        onClose();
-        if (!player || !t.isOnline) return;
-        try {
-          const { getNeteasePlayInfo } = await import("@/lib/music-service");
-          const info = await getNeteasePlayInfo(Number(t.id));
-          if (info?.url) {
-            player.playUrl(info.url, {
-              id: t.id,
-              title: t.title,
-              artist: t.artist,
-              coverUrl: t.coverUrl,
-              duration: t.duration || 240,
-              liked: false,
-              addedAt: new Date().toISOString(),
-            });
-          }
-        } catch (err) {
-          console.warn("[IslandTogether] 播放失败:", err);
-        }
-      }}
-    />
-  );
-}
-
 function StatusDynamicIsland() {
-  const player = useMusicControlsOptional();
+  const player = useMusicPlayerOptional();
   const [togetherChar, setTogetherChar] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const checkTogether = () => {
       try {
         const sessions = loadChatSessions();
         const track = player?.currentTrack;
-        const activeSess = sessions.find(s => s.listenTogetherTrack && (!track || s.listenTogetherTrack.id === track.id || s.listenTogetherTrack.name === track.title));
+        const activeSess = sessions.find(
+          s => s.listenTogetherTrack && (!track || s.listenTogetherTrack.id === track.id || s.listenTogetherTrack.name === track.title),
+        );
         if (activeSess) {
-          const allChars = loadCharacters();
-          const found = allChars.find(c => c.id === activeSess.contactId);
+          const found = loadCharacters().find(c => c.id === activeSess.contactId);
           setTogetherChar(found ? { id: found.id, name: found.name, avatar: found.avatar || null } : null);
           return;
         }
@@ -690,50 +644,104 @@ function StatusDynamicIsland() {
     return () => window.removeEventListener("chat-session-updated", checkTogether);
   }, [player?.currentTrack]);
 
-  const isPlaying = !!player?.isPlaying;
+  useEffect(() => {
+    if (!player?.currentTrack) setExpanded(false);
+  }, [player?.currentTrack]);
+
   const currentTrack = player?.currentTrack;
   const hasMusic = !!currentTrack;
+  const isPlaying = !!player?.isPlaying;
+  const progress = player && player.duration > 0
+    ? Math.min(100, Math.max(0, (player.currentTime / player.duration) * 100))
+    : 0;
 
-  const handleClick = (e: React.MouseEvent) => {
+  const toggleExpanded = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!player || !hasMusic) return;
-    window.dispatchEvent(new CustomEvent("music-island-toggle"));
+    if (hasMusic) setExpanded(prev => !prev);
+  };
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    if (!player || player.duration <= 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    player.seek(((e.clientX - rect.left) / rect.width) * player.duration);
   };
 
   return (
     <div
-      className={`status-island ${hasMusic ? "status-island-music" : ""} ${togetherChar ? "status-island-together" : ""}`}
-      onClick={hasMusic ? handleClick : undefined}
-      title={hasMusic ? "点击展开音乐控制" : undefined}
+      className={`status-island ${hasMusic ? "status-island-music" : ""} ${togetherChar ? "status-island-together" : ""} ${expanded ? "status-island-expanded" : ""}`}
+      onClick={hasMusic ? toggleExpanded : undefined}
+      title={hasMusic ? (expanded ? "点击收起音乐控制" : "点击展开音乐控制") : undefined}
       style={{ cursor: hasMusic ? "pointer" : "default" }}
     >
-      {hasMusic ? (
-        <div className="status-island-content flex items-center justify-between w-full h-full px-2 gap-1.5 overflow-hidden text-white select-none">
-          <div className="flex items-center gap-1.5 shrink-0 overflow-hidden max-w-[80px]">
-            {togetherChar ? (
-              <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 ring-1 ring-pink-400 bg-pink-700 flex items-center justify-center text-[8px] font-bold text-white">
-                {togetherChar.avatar ? <img src={togetherChar.avatar} alt="" className="w-full h-full object-cover" /> : togetherChar.name.slice(0, 1)}
+      {hasMusic && currentTrack ? (
+        <>
+          <div className="status-island-content flex items-center justify-between w-full h-full px-2 gap-1.5 overflow-hidden text-white select-none">
+            <div className="flex items-center gap-1.5 shrink-0 overflow-hidden max-w-[80px]">
+              {togetherChar ? (
+                <div className="w-4 h-4 rounded-full overflow-hidden shrink-0 ring-1 ring-pink-400 bg-pink-700 flex items-center justify-center text-[8px] font-bold text-white">
+                  {togetherChar.avatar ? <img src={togetherChar.avatar} alt="" className="w-full h-full object-cover" /> : togetherChar.name.slice(0, 1)}
+                </div>
+              ) : currentTrack.coverUrl ? (
+                <img src={currentTrack.coverUrl} alt="" className={`w-4 h-4 rounded-full object-cover shrink-0 ${isPlaying ? "animate-spin" : ""}`} style={{ animationDuration: "4s" }} />
+              ) : (
+                <span className="text-[11px] text-pink-400 shrink-0">♪</span>
+              )}
+              <span className="text-[10px] font-medium truncate text-white/90 leading-none">
+                {togetherChar ? togetherChar.name : currentTrack.title}
+              </span>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0 pl-0.5">
+              <span className={`w-0.5 rounded-full bg-pink-400 transition-all ${isPlaying ? "h-2.5 animate-pulse" : "h-1"}`} />
+              <span className={`w-0.5 rounded-full bg-pink-300 transition-all ${isPlaying ? "h-3.5 animate-bounce" : "h-1.5"}`} />
+              <span className={`w-0.5 rounded-full bg-pink-500 transition-all ${isPlaying ? "h-2 animate-pulse" : "h-1"}`} />
+            </div>
+          </div>
+
+          {expanded && (
+            <div
+              className="status-island-music-panel"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <div className="status-island-music-main">
+                <div className="status-island-music-cover">
+                  {currentTrack.coverUrl ? <img src={currentTrack.coverUrl} alt="" /> : <span>♪</span>}
+                </div>
+                <div className="status-island-music-meta">
+                  <strong>{currentTrack.title}</strong>
+                  <span>{currentTrack.artist}</span>
+                  {togetherChar && <small>和 {togetherChar.name} 一起听</small>}
+                </div>
               </div>
-            ) : currentTrack?.coverUrl ? (
-              <img src={currentTrack.coverUrl} alt="" className={`w-4 h-4 rounded-full object-cover shrink-0 ${isPlaying ? "animate-spin" : ""}`} style={{ animationDuration: "4s" }} />
-            ) : (
-              <span className="text-[11px] text-pink-400 shrink-0">♪</span>
-            )}
-            <span className="text-[10px] font-medium truncate text-white/90 leading-none">
-              {togetherChar ? togetherChar.name : (currentTrack?.title || "正在播放")}
-            </span>
-          </div>
-          <div className="flex items-center gap-0.5 shrink-0 pl-0.5">
-            <span className={`w-0.5 rounded-full bg-pink-400 transition-all ${isPlaying ? "h-2.5 animate-pulse" : "h-1"}`} />
-            <span className={`w-0.5 rounded-full bg-pink-300 transition-all ${isPlaying ? "h-3.5 animate-bounce" : "h-1.5"}`} style={{ animationDelay: "0.15s" }} />
-            <span className={`w-0.5 rounded-full bg-pink-500 transition-all ${isPlaying ? "h-2 animate-pulse" : "h-1"}`} style={{ animationDelay: "0.3s" }} />
-          </div>
-        </div>
+
+              <div className="status-island-music-progress" onClick={seek}>
+                <span style={{ width: `${progress}%` }} />
+              </div>
+              <div className="status-island-music-times">
+                <span>{formatMusicIslandTime(player.currentTime)}</span>
+                <span>{formatMusicIslandTime(player.duration)}</span>
+              </div>
+
+              <div className="status-island-music-controls">
+                <button type="button" onClick={() => player.prev()} aria-label="上一首">‹‹</button>
+                <button type="button" className="play" onClick={() => player.togglePlay()} aria-label={isPlaying ? "暂停" : "播放"}>
+                  {isPlaying ? "Ⅱ" : "▶"}
+                </button>
+                <button type="button" onClick={() => player.next()} aria-label="下一首">››</button>
+              </div>
+            </div>
+          )}
+        </>
       ) : null}
     </div>
   );
 }
 
+function formatMusicIslandTime(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return "00:00";
+  return `${Math.floor(sec / 60).toString().padStart(2, "0")}:${Math.floor(sec % 60).toString().padStart(2, "0")}`;
+}
 function collectCssOverrides(profile: ThemeProfile): Record<string, string> {
   const overrides: Record<string, string> = {};
   for (const [key, value] of Object.entries(profile.cssOverrides)) {
@@ -1233,8 +1241,6 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   );
   const [savedTheme, setSavedTheme] = useState<ThemeProfile>(() => initialThemeProfile ?? readInitialThemeProfile());
   const [draftTheme, setDraftTheme] = useState<ThemeProfile>(() => initialThemeProfile ?? readInitialThemeProfile());
-  const [showIslandTogetherCard, setShowIslandTogetherCard] = useState(false);
-  const [showIslandTogetherModal, setShowIslandTogetherModal] = useState(false);
   useEffect(() => {
     activeAppRef.current = activeApp;
   }, [activeApp]);
@@ -5183,20 +5189,11 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                   (.phone-shell[data-icon-effect] etc.); follows pointer via ref */}
               <div ref={ghostRef} className="drag-ghost" />
 
-              {/* 灵动岛同听展开卡片：点击灵动岛后从正下方展开，自带 CSS 美化、导入/导出与重置管理 */}
-              <TogetherListenCard
-                open={showIslandTogetherCard}
-                onClose={() => setShowIslandTogetherCard(false)}
-                onOpenTogether={() => setShowIslandTogetherModal(true)}
-              />
+
             </div>
           </div>
         </div>
       </section>
-      {/* 灵动岛点击一起听弹出的双人美化与换歌弹窗 */}
-      {showIslandTogetherModal && (
-        <IslandTogetherModal onClose={() => setShowIslandTogetherModal(false)} />
-      )}
       {/* 微信云同步过程可视化：拉取/上传/运行包同步与失败都在这里冒 toast */}
       <WeixinSyncToast />
     </>
