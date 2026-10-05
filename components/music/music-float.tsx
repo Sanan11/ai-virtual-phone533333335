@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMusicControlsOptional } from "@/lib/music-context";
+import { useMusicPlayerOptional } from "@/lib/music-context";
 
 const DRAG_START_THRESHOLD = 6;
 const SWIPE_DISMISS_EDGE_X = 4;
@@ -11,8 +11,15 @@ const SWIPE_DISMISS_ARMING_X = 88;
 const SWIPE_INERTIA_MS = 140;
 const SWIPE_VELOCITY_RECENT_MS = 180;
 
+function formatTime(sec: number): string {
+    if (!Number.isFinite(sec) || sec < 0) return "00:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function MusicFloat({ hidden }: { hidden?: boolean }) {
-    const player = useMusicControlsOptional();
+    const player = useMusicPlayerOptional();
     const floatRef = useRef<HTMLDivElement>(null);
     const [pos, setPos] = useState({ x: 310, y: 680 });
     const dragRef = useRef<{
@@ -179,10 +186,21 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
 
     const track = player.currentTrack;
 
+    const progress = player.duration > 0 ? Math.min(100, Math.max(0, (player.currentTime / player.duration) * 100)) : 0;
+
+    const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        if (!player.duration || player.duration <= 0) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+        player.seek(ratio * player.duration);
+    };
+
     return (
         <div
             ref={floatRef}
-            className="music-float"
+            className="music-float music-float-glow-card"
             {...(expanded ? { "data-expanded": "" } : {})}
             {...(dismissing ? { "data-dismissing": "" } : {})}
             style={{ left: "50%", top: 44, transform: "translateX(-50%)" }}
@@ -191,51 +209,97 @@ export default function MusicFloat({ hidden }: { hidden?: boolean }) {
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
         >
-            <div className="music-float-inner">
-                {/* Cover art */}
-                <div className="music-float-cover-wrap" {...(player.isPlaying ? { "data-playing": "" } : {})}>
-                    <div className="music-float-vinyl-groove music-float-vinyl-groove-1" />
-                    <div className="music-float-vinyl-groove music-float-vinyl-groove-2" />
-                    <div className="music-float-vinyl-center">
-                        {track.coverUrl ? (
-                            <img src={track.coverUrl} alt="" className="music-float-cover-img" draggable={false} />
-                        ) : (
-                            <div className="music-float-cover-placeholder">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
-                                </svg>
-                            </div>
-                        )}
+            {/* 专辑流光背景环境氛围层 */}
+            {track.coverUrl && (
+                <div
+                    className="music-float-ambient-glow"
+                    style={{ backgroundImage: `url(${track.coverUrl})` }}
+                />
+            )}
+            <div className="music-float-glass-shimmer" />
+
+            <div className="music-float-inner-glow">
+                {/* 顶部主信息行：微黑胶封面 + 歌曲信息 + 跳动声波 */}
+                <div className="music-float-main-row">
+                    {/* 微黑胶微缩组 */}
+                    <div className="music-float-vinyl-pocket" {...(player.isPlaying ? { "data-playing": "" } : {})}>
+                        {/* 黑胶盘片 */}
+                        <div className="music-float-disc-disc">
+                            <div className="music-float-disc-ring" />
+                            <div className="music-float-disc-ring music-float-disc-ring-sub" />
+                            <div className="music-float-disc-center" />
+                        </div>
+                        {/* 正方形唱片封套 */}
+                        <div className="music-float-jacket-cover">
+                            {track.coverUrl ? (
+                                <img src={track.coverUrl} alt="" className="music-float-cover-img" draggable={false} />
+                            ) : (
+                                <div className="music-float-cover-placeholder">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                        <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 歌曲与歌手信息 */}
+                    <div className="music-float-info">
+                        <div className="music-float-title-row">
+                            <span className="music-float-title">{track.title}</span>
+                        </div>
+                        <div className="music-float-artist-row">
+                            <span className="music-float-artist">{track.artist}</span>
+                        </div>
+                    </div>
+
+                    {/* 右侧动态流光声波条 */}
+                    <div className="music-float-wave-badge" {...(player.isPlaying ? { "data-playing": "" } : {})}>
+                        <span className="music-float-wave-bar b1" />
+                        <span className="music-float-wave-bar b2" />
+                        <span className="music-float-wave-bar b3" />
+                        <span className="music-float-wave-bar b4" />
                     </div>
                 </div>
 
-                {/* Track Info */}
-                <div className="music-float-info">
-                    <div className="music-float-title">{track.title}</div>
-                    <div className="music-float-artist">{track.artist}</div>
+                {/* 中间进度条 + 发光滑轨 */}
+                <div className="music-float-progress-section">
+                    <div className="music-float-progress-track" onClick={handleSeekClick}>
+                        <div className="music-float-progress-fill" style={{ width: `${progress}%` }}>
+                            <div className="music-float-progress-thumb" />
+                        </div>
+                    </div>
+                    <div className="music-float-time-row">
+                        <span>{formatTime(player.currentTime)}</span>
+                        <span>{formatTime(player.duration)}</span>
+                    </div>
                 </div>
 
-                {/* Compact Controls */}
-                <div className="music-float-controls">
-                    <button className="music-float-btn" onClick={(e) => { e.stopPropagation(); player.prev(); }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                {/* 底部控制按键栏 */}
+                <div className="music-float-controls-row">
+                    <button className="music-float-ctrl-btn" onClick={(e) => { e.stopPropagation(); player.prev(); }} title="上一首">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 6h2.2v12H6zm3.5 6l9.5 6.5V5.5z" />
                         </svg>
                     </button>
-                    <button className="music-float-btn music-float-btn-play" onClick={(e) => { e.stopPropagation(); player.togglePlay(); }}>
+                    <button
+                        className="music-float-ctrl-btn music-float-ctrl-play"
+                        onClick={(e) => { e.stopPropagation(); player.togglePlay(); }}
+                        title={player.isPlaying ? "暂停" : "播放"}
+                    >
                         {player.isPlaying ? (
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 4h4v16H6zm8 0h4v16h-4z" />
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7 5h3.5v14H7zm6.5 0H17v14h-3.5z" />
                             </svg>
                         ) : (
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 2 }}>
                                 <path d="M8 5v14l11-7z" />
                             </svg>
                         )}
                     </button>
-                    <button className="music-float-btn" onClick={(e) => { e.stopPropagation(); player.next(); }}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 18l8.5-6L6 6v12zm8.5 0h2V6h-2v12z" />
+                    <button className="music-float-ctrl-btn" onClick={(e) => { e.stopPropagation(); player.next(); }} title="下一首">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 18.5l9.5-6.5L6 5.5v13zm9.5-12.5H18v12h-2.5z" />
                         </svg>
                     </button>
                 </div>
