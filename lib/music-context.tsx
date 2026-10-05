@@ -324,7 +324,8 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const dismissFloat = useCallback(() => {
-        audioRef.current?.pause();
+        // Hiding/collapsing the island must not stop playback.
+        // Audio state is controlled separately by pause/stop.
         setFloatDismissed(true);
     }, []);
 
