@@ -664,7 +664,7 @@ function IslandTogetherModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function StatusDynamicIsland({ onOpenMusicTogether, onOpenTogetherCard }: { onOpenMusicTogether?: () => void; onOpenTogetherCard?: () => void }) {
+function StatusDynamicIsland() {
   const player = useMusicControlsOptional();
   const [togetherChar, setTogetherChar] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
 
@@ -677,10 +677,8 @@ function StatusDynamicIsland({ onOpenMusicTogether, onOpenTogetherCard }: { onOp
         if (activeSess) {
           const allChars = loadCharacters();
           const found = allChars.find(c => c.id === activeSess.contactId);
-          if (found) {
-            setTogetherChar({ id: found.id, name: found.name, avatar: found.avatar || null });
-            return;
-          }
+          setTogetherChar(found ? { id: found.id, name: found.name, avatar: found.avatar || null } : null);
+          return;
         }
         setTogetherChar(null);
       } catch {
@@ -698,22 +696,15 @@ function StatusDynamicIsland({ onOpenMusicTogether, onOpenTogetherCard }: { onOp
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (togetherChar) {
-      if (onOpenTogetherCard) {
-        onOpenTogetherCard();
-      } else if (onOpenMusicTogether) {
-        onOpenMusicTogether();
-      }
-    } else if (player) {
-      player.openFullPlayer();
-    }
+    if (!player || !hasMusic) return;
+    window.dispatchEvent(new CustomEvent("music-island-toggle"));
   };
 
   return (
     <div
       className={`status-island ${hasMusic ? "status-island-music" : ""} ${togetherChar ? "status-island-together" : ""}`}
       onClick={hasMusic ? handleClick : undefined}
-      title={togetherChar ? `与 ${togetherChar.name} 一起听歌（点击打开同听台）` : hasMusic ? `${currentTrack?.title} - ${currentTrack?.artist || ""}（点击展开播放器）` : undefined}
+      title={hasMusic ? "点击展开音乐控制" : undefined}
       style={{ cursor: hasMusic ? "pointer" : "default" }}
     >
       {hasMusic ? (
@@ -4326,10 +4317,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
 
               <header className="phone-status-bar">
                 <StatusClock />
-                <StatusDynamicIsland
-                  onOpenTogetherCard={() => setShowIslandTogetherCard(true)}
-                  onOpenMusicTogether={() => setShowIslandTogetherModal(true)}
-                />
+                <StatusDynamicIsland />
                 <div className="status-right" aria-hidden>
                   <svg viewBox="0 0 72 51" className="status-signal" fill="currentColor">
                     <path d="M11.6,41.9c0,1.4,0,2.8,0,4.3c0,2.3-1.4,3.7-3.6,3.8c-1.5,0.1-3,0.1-4.4,0c-1.9-0.1-3.2-1.2-3.4-3c-0.3-3.4-0.2-6.8,0-10.1c0.1-1.8,1.5-3,3.3-3.1c1.5-0.1,3-0.1,4.4,0c2.2,0.1,3.6,1.5,3.7,3.8C11.6,39,11.6,40.5,11.6,41.9z" />
