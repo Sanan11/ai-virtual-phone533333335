@@ -2751,16 +2751,10 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
 
     const hasKnownGroupSenderPrefix = (text: string) => {
         return groupCharacters.some((groupCharacter) => {
-            const escapedName = groupCharacter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\    const hasKnownGroupSenderPrefix = (text: string) => {
-        return groupCharacters.some((groupCharacter) => {
-            const escapedName = groupCharacter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            return new RegExp(`^\\[${escapedName}\\]:\\s*`, "m").test(text);
-        });
-    };");
+            const escapedName = groupCharacter.name.replace(/[.*+?^${()|[\]\\]/g, "\\$&");
             return new RegExp(`^\\[${escapedName}\\]\\s*[:：]\\s*`, "m").test(text);
         });
     };
-
     const buildAssistantMessageDraft = (
         part: ParsedMessagePart,
         draft: AssistantMessageDraft,
