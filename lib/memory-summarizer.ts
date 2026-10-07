@@ -2,7 +2,7 @@
 // Auto-summarization engine: summarizes short-term events into long-term memories.
 // Trigger: every N events (configurable). Short-term events are NOT deleted after summarization.
 
-import type { MemoryEntry } from "./memory-types";
+import type { MemoryEntry, MemoryCategory } from "./memory-types";
 import { DEFAULT_SUMMARIZATION_PROMPT } from "./memory-types";
 import {
     loadMemoryConfig,
@@ -23,6 +23,57 @@ import { maybeRunCoreMemoryPipeline } from "./core-memory-builder";
 
 /** Per-character lock to prevent concurrent summarization. */
 const summarizingSet = new Set<string>();
+const MEMORY_CATEGORIES: MemoryCategory[] = [
+    "timeline", "user", "relationship", "understanding", "character",
+    "future_confirm", "future_action", "future_done",
+];
+
+async function classifyMemorySummary(
+    characterName: string,
+    summary: string,
+    apiConfig: Parameters<typeof simpleLLMCall>[0],
+): Promise<{ category: MemoryCategory; confidence: number }> {
+    const prompt = `你正在为角色「${characterName}」整理一条长期记忆。
+请判断这条记忆最主要属于哪个类别，只返回 JSON，不要解释：
+{
+  "category": "timeline|user|relationship|understanding|character|future_confirm|future_action|future_done",
+  "confidence": 0到1之间的数字
+}
+
+分类标准：
+- timeline：重要发生过的事件、剧情节点
+- user：用户的客观事实、偏好、习惯
+- relationship：角色与用户的关系变化、关系里程碑
+- understanding：角色对用户的主观理解、判断、印象
+- character：角色自己的经历、长期状态、个人信息
+- future_confirm：还想确认的事情
+- future_action：想做但还没完成的事情
+- future_done：原本的计划/事项已经完成
+- 不确定时选 timeline
+
+记忆：
+${summary}`;
+    try {
+        const result = await simpleLLMCall(
+            apiConfig,
+            [{ role: "user", content: prompt }],
+            { temperature: 0.1, label: `记忆分类·${characterName}` },
+        );
+        const raw = result.content.trim().replace(/^\`\`\`json\s*/i, "").replace(/\s*\`\`\`$/i, "");
+        const parsed = JSON.parse(raw) as { category?: string; confidence?: number };
+        const category = MEMORY_CATEGORIES.includes(parsed.category as MemoryCategory)
+            ? parsed.category as MemoryCategory
+            : "timeline";
+        const confidence = typeof parsed.confidence === "number"
+            ? Math.max(0, Math.min(1, parsed.confidence))
+            : 0.5;
+        return { category, confidence };
+    } catch {
+        return { category: "timeline", confidence: 0 };
+    }
+}
+
+
 
 /**
  * Check if summarization should run based on event counter, then execute.
