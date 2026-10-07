@@ -2,6 +2,16 @@
 
 import type { ContentAppId } from "./settings-types";
 
+export type MemoryCategory =
+    | "timeline"
+    | "user"
+    | "relationship"
+    | "understanding"
+    | "character"
+    | "future_confirm"
+    | "future_action"
+    | "future_done";
+
 export type MemoryEntry = {
     id: string;
     characterId: string;
