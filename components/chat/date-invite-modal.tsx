@@ -47,7 +47,7 @@ export function DateInviteModal({ characterName, onSend, onAIGenerate, onClose }
                     )}
                 </div>
                 <p className="ts-12 text-[var(--c-text-sub)] mb-4">
-                    向 {characterName} 发送赴约卡片，点击卡片直接开启「漫卷」视觉小说浪漫剧情。
+                    向 {characterName} 发送赴约卡片，点击卡片直接开启「剧情」模式浪漫故事。
                 </p>
 
                 <div className="flex flex-col gap-3 text-xs">

@@ -67,6 +67,12 @@ import { MacroEngine } from "@/lib/macro-engine";
 
 type StoryAppProps = {
   onClose: () => void;
+  initialCharacterId?: string | null;
+  initialDateInfo?: {
+    location?: string;
+    time?: string;
+    matter?: string;
+  } | null;
 };
 
 type StoryGenerationRun = {
@@ -270,11 +276,12 @@ const StoryComposer = memo(function StoryComposer({
   );
 });
 
-export function StoryApp({ onClose }: StoryAppProps) {
+export function StoryApp({ onClose, initialCharacterId, initialDateInfo }: StoryAppProps) {
+  const initializedDateRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [, setStorageVersion] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeCharacterId, setActiveCharacterId] = useState<string>("");
+  const [activeCharacterId, setActiveCharacterId] = useState<string>(() => initialCharacterId || "");
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const [messages, setMessages] = useState<StoryMessage[]>([]);
   const [visibleMessageCount, setVisibleMessageCount] = useState(STORY_INITIAL_LOAD);
@@ -343,13 +350,29 @@ export function StoryApp({ onClose }: StoryAppProps) {
 
   useEffect(() => {
     hydrateStoryStorage().then(() => {
-      const initialChar = loadCharacters()[0]?.id || "";
-      if (initialChar) {
-        const session = createOrGetStorySession(initialChar);
-        setActiveCharacterId(initialChar);
+      const targetChar = initialCharacterId || loadCharacters()[0]?.id || "";
+      if (targetChar) {
+        const session = createOrGetStorySession(targetChar);
+        setActiveCharacterId(targetChar);
         setActiveSessionId(session.id);
-        activeSessionIdRef.current = session.id; // 同步更新，堵住生成完成回调的守卫空窗
+        activeSessionIdRef.current = session.id;
         setVisibleMessageCount(STORY_INITIAL_LOAD);
+
+        // 若通过线下邀约卡片进入，自动生成开篇剧情引导
+        if (!initializedDateRef.current && initialDateInfo) {
+          initializedDateRef.current = true;
+          const loc = initialDateInfo.location?.trim() || "约定地点";
+          const tim = initialDateInfo.time?.trim() || "约定时分";
+          const mat = initialDateInfo.matter?.trim() || "赴约同行";
+          const introText = `【线下赴约 · ${loc}】\n约定时分：${tim}\n事由：${mat}\n你如约来到${loc}，不远处的身影在微风与灯火中渐渐清晰……`;
+          pushStoryMessage({
+            sessionId: session.id,
+            role: "assistant",
+            rawContent: introText,
+            renderedContent: `<p><strong>【线下赴约 · ${loc}】</strong></p><p>约定时分：${tim}</p><p>事由：${mat}</p><p>你如约来到${loc}，不远处的身影在微风与灯火中渐渐清晰……</p>`,
+          });
+        }
+
         setMessages(loadStoryMessages(session.id));
         setCustomCssDraft(session.customCSS || "");
         setFoldTagsDraft(session.foldTags ?? "think,thinking");
@@ -358,7 +381,7 @@ export function StoryApp({ onClose }: StoryAppProps) {
       }
       setReady(true);
     });
-  }, []);
+  }, [initialCharacterId, initialDateInfo]);
 
   useEffect(() => {
     if (!activeCharacterId) return;
