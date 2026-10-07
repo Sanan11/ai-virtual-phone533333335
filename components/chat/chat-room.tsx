@@ -63,6 +63,8 @@ import { getMusicControlBridge } from "@/lib/music-control-bridge";
 import { useMusicPlayerOptional } from "@/lib/music-context";
 import { findPlayableMatch, getNeteaseLyrics, getNeteaseSongDetail } from "@/lib/music-service";
 import { approveMemoryWriteRequest } from "@/lib/tool-executor";
+import { incrementEventCounter } from "@/lib/memory-storage";
+import { maybeRunSummarization } from "@/lib/memory-summarizer";
 import type { MemoryWriteRequest, ToolResult } from "@/lib/tool-executor";
 import { formatChatUiTime } from "@/lib/chat-time";
 import { parseActionTags } from "@/lib/action-parser";
