@@ -668,152 +668,236 @@ export function MemoryBankPage({ view, selectedCharId, onSelectChar, onNotice }:
 
     // ── Detail View ──
     if (view === "detail" && selectedChar) {
+        const timeline = shortTermEvents.slice().reverse();
+        const shared = sharedEvents.slice().reverse();
+        const userMemories = longTermEntries.filter(e => String(e.metadata?.category ?? "") === "user");
+        const relationshipMemories = longTermEntries.filter(e => String(e.metadata?.category ?? "") === "relationship");
+        const understandingMemories = longTermEntries.filter(e => String(e.metadata?.category ?? "") === "understanding");
+        const futureMemories = longTermEntries.filter(e => ["future_confirm", "future_action", "future_done"].includes(String(e.metadata?.category ?? "")));
+        const characterMemories = longTermEntries.filter(e => String(e.metadata?.category ?? "") === "character");
+        const uncategorized = longTermEntries.filter(e => !e.metadata?.category);
+
+        const MemoryMiniCard = ({ entry }: { entry: MemoryEntry }) => (
+            <button
+                type="button"
+                className="mem-sane-card"
+                onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+            >
+                <div className="mem-sane-card-meta">
+                    <span>{relativeTime(entry.createdAt)}</span>
+                    <span>{isManualMemoryEntry(entry) ? "MANUAL" : "AUTO"}</span>
+                </div>
+                <div className="mem-sane-card-text">
+                    {expandedId === entry.id ? entry.content : entry.content.length > 120 ? entry.content.slice(0, 120) + "…" : entry.content}
+                </div>
+                <div className="mem-sane-card-foot">
+                    <span>重要度 {Math.round(entry.importance * 100)}%</span>
+                    <span>{entry.sourceApp}</span>
+                </div>
+            </button>
+        );
+
+        const Section = ({
+            title,
+            subtitle,
+            count,
+            children,
+        }: {
+            title: string;
+            subtitle?: string;
+            count?: number;
+            children: ReactNode;
+        }) => (
+            <section className="mem-sane-section">
+                <div className="mem-sane-section-head">
+                    <div>
+                        <h3>{title}{typeof count === "number" ? <small>{String(count).padStart(2, "0")}</small> : null}</h3>
+                        {subtitle ? <p>{subtitle}</p> : null}
+                    </div>
+                </div>
+                {children}
+            </section>
+        );
+
+        const empty = (text: string) => <div className="mem-sane-empty">{text}</div>;
+
         return (
-            <div className="flex flex-col absolute inset-0 overflow-hidden" style={{ padding: "0 16px" }}>
-                {/* Content */}
-                <div className="memory-detail-scroll flex-1 overflow-y-auto flex flex-col gap-2 min-h-0">
-                    <MemoryDetailBoundary>
+            <div className="mem-sane-root">
+                <style>{`
+                    .mem-sane-root{height:100%;overflow:hidden;background:#fff;color:#211f1c;font-family:var(--font-sans,system-ui,sans-serif)}
+                    .mem-sane-scroll{height:100%;overflow-y:auto;padding:0 18px 120px;scrollbar-width:none}
+                    .mem-sane-scroll::-webkit-scrollbar{display:none}
+                    .mem-sane-hero{padding:18px 4px 10px}
+                    .mem-sane-kicker{display:flex;justify-content:space-between;align-items:center;color:#aaa39a;font:500 10px/1.2 ui-monospace,monospace;letter-spacing:.18em}
+                    .mem-sane-person{display:flex;align-items:center;gap:13px;margin-top:15px;padding:14px 15px;background:#f8f5ef;border-radius:22px;border:1px solid #eee9e1}
+                    .mem-sane-avatar{width:54px;height:54px;border-radius:50%;object-fit:cover;background:#e8e3db;display:grid;place-items:center;color:#fff;font-family:serif;font-size:20px;flex:none}
+                    .mem-sane-name{font-size:20px;font-weight:700;letter-spacing:.01em}
+                    .mem-sane-sub{font-size:11px;color:#8a847c;margin-top:4px}
+                    .mem-sane-status{margin-left:auto;border:1px solid #e7e1d8;background:#fff;border-radius:99px;padding:7px 10px;color:#827a70;font-size:10px}
+                    .mem-sane-tabs{display:flex;gap:6px;margin:5px 0 3px;padding:4px;background:#f5f5f4;border-radius:99px}
+                    .mem-sane-tab{flex:1;border:0;background:transparent;border-radius:99px;padding:8px 3px;color:#8a847c;font-size:12px;cursor:pointer}
+                    .mem-sane-tab.on{background:#fff;color:#211f1c;font-weight:600;box-shadow:0 2px 8px rgba(50,40,30,.07)}
+                    .mem-sane-section{padding:23px 4px 0}
+                    .mem-sane-section-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:11px}
+                    .mem-sane-section h3{font-size:16px;margin:0;font-weight:700}
+                    .mem-sane-section h3 small{font:400 10px ui-monospace,monospace;color:#b99a6e;margin-left:7px}
+                    .mem-sane-section p{margin:4px 0 0;color:#aaa39a;font-size:10.5px}
+                    .mem-sane-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+                    .mem-sane-card{width:100%;text-align:left;border:1px solid #eeeae4;background:#faf9f7;border-radius:17px;padding:12px 13px;color:#211f1c;cursor:pointer}
+                    .mem-sane-card:hover{background:#f7f3ed}
+                    .mem-sane-card-meta,.mem-sane-card-foot{display:flex;justify-content:space-between;gap:8px;color:#aaa39a;font:400 9.5px ui-monospace,monospace}
+                    .mem-sane-card-text{font-size:12.5px;line-height:1.65;margin:9px 0 10px}
+                    .mem-sane-empty{border:1px dashed #e6e0d7;border-radius:16px;padding:15px;color:#aaa39a;font-size:11px;text-align:center}
+                    .mem-sane-timeline{position:relative;padding-left:18px}
+                    .mem-sane-timeline:before{content:"";position:absolute;left:4px;top:8px;bottom:8px;width:1px;background:#ece8e1}
+                    .mem-sane-event{position:relative;padding:0 0 17px}
+                    .mem-sane-event:before{content:"";position:absolute;left:-18px;top:5px;width:7px;height:7px;border-radius:50%;background:#fff;border:2px solid #c9919d}
+                    .mem-sane-date{font:400 9.5px ui-monospace,monospace;color:#b99a6e;letter-spacing:.08em;margin-bottom:5px}
+                    .mem-sane-event-text{font-size:13px;line-height:1.7}
+                    .mem-sane-bubble{display:flex;gap:9px;align-items:flex-end}
+                    .mem-sane-bubble-avatar{width:27px;height:27px;border-radius:50%;object-fit:cover;background:#e8e3db;flex:none}
+                    .mem-sane-bubble-text{background:#f5f5f4;border-radius:16px 16px 16px 5px;padding:10px 13px;font-size:12.5px;line-height:1.6}
+                    .mem-sane-actions{display:flex;gap:8px;padding:15px 4px 0}
+                    .mem-sane-action{flex:1;border:1px solid #e9e5df;background:#fff;border-radius:99px;padding:10px;font-size:11px;cursor:pointer}
+                    .mem-sane-action.primary{background:#211f1c;color:#fff;border-color:#211f1c}
+                    .mem-sane-source{font-size:9.5px;color:#aaa39a;margin-top:5px}
+                `}</style>
+
+                <div className="mem-sane-scroll">
+                    <header className="mem-sane-hero">
+                        <div className="mem-sane-kicker"><span>MEMORY</span><span>{selectedChar.name}</span></div>
+                        <div className="mem-sane-person">
+                            {selectedChar.avatar ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={selectedChar.avatar} alt="" className="mem-sane-avatar" />
+                            ) : (
+                                <div className="mem-sane-avatar">{selectedChar.name.slice(0, 1)}</div>
+                            )}
+                            <div>
+                                <div className="mem-sane-name">{selectedChar.name}</div>
+                                <div className="mem-sane-sub">这个角色的记忆 · 与角色档案实时绑定</div>
+                            </div>
+                            <span className="mem-sane-status">{longTermEntries.length + coreEntries.length} records</span>
+                        </div>
+                    </header>
+
+                    <div className="mem-sane-tabs">
+                        {[
+                            ["short","近期"],
+                            ["shared","共享"],
+                            ["long","长期"],
+                            ["core","核心"],
+                        ].map(([key,label]) => (
+                            <button key={key} className={`mem-sane-tab ${activeTab === key ? "on" : ""}`} onClick={() => setActiveTab(key as MemoryTab)}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
                     {loading ? (
-                        <p className="text-center ts-14 mt-10 text-secondary">
-                            加载中...
-                        </p>
+                        <div className="mem-sane-empty" style={{ marginTop: 30 }}>正在读取 {selectedChar.name} 的记忆…</div>
                     ) : activeTab === "short" ? (
-                        /* ── Short-term: card view ── */
                         <>
-                            <MemoryTimeline
-                                events={shortTermEvents}
-                                userName={resolveUserIdentity(selectedCharId!)?.name || "用户"}
-                            />
+                            <Section title="Timeline" subtitle="最近发生的事情">
+                                {timeline.length ? (
+                                    <div className="mem-sane-timeline">
+                                        {timeline.slice(0, 12).map((event, index) => (
+                                            <div className="mem-sane-event" key={event.id ?? index}>
+                                                <div className="mem-sane-date">{event.createdAt ? relativeTime(event.createdAt) : "RECENT"}</div>
+                                                <div className="mem-sane-event-text">{event.text}</div>
+                                                <div className="mem-sane-source">{event.sourceApp}{event.sourceDetail ? " · " + event.sourceDetail : ""}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : empty("还没有近期事件。聊天、朋友圈和剧情发生后会自动进入这里。")}
+                            </Section>
+
+                            <Section title="关于你" subtitle="角色记住的用户事实 / 偏好" count={userMemories.length}>
+                                {userMemories.length ? <div className="mem-sane-grid">{userMemories.slice(0,6).map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> :
+                                    uncategorized.length ? <div className="mem-sane-grid">{uncategorized.slice(0,4).map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> :
+                                    empty("暂时还没有关于你的长期记忆。")}
+                            </Section>
+
+                            <Section title="我们的关系" subtitle="关系变化与重要节点" count={relationshipMemories.length}>
+                                {relationshipMemories.length ? <div className="mem-sane-grid">{relationshipMemories.slice(0,4).map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> : empty("关系记忆会随着重要聊天与剧情事件产生。")}
+                            </Section>
                         </>
                     ) : activeTab === "shared" ? (
-                        /* ── Shared events: card view ── */
-                        sharedEvents.length === 0 ? (
-                            <p className="text-center ts-14 mt-10 text-secondary">
-                                暂无共享事件。用户发朋友圈或参与群聊后会自动显示。
-                            </p>
-                        ) : (
-                            <MemoryTimeline
-                                events={sharedEvents}
-                                userName={resolveUserIdentity(selectedCharId!)?.name || "用户"}
-                            />
-                        )
-                    ) : activeTab === "core" ? (
-                        renderMemoryEntries("core", coreEntries, "暂无核心记忆。长期记忆累计到设定条数后会自动提炼，也可以手动新增。")
-                    ) : (
-                        /* ── Long-term: Summarized Memories ── */
-                        renderMemoryEntries("long_term", longTermEntries, "暂无长期记忆。点击设置页的手动总结，或直接新增一条记忆。")
-                    )}
-                    </MemoryDetailBoundary>
-                </div>
-
-                {/* Bottom tab bar — floating above bottom */}
-                <div className="chat-tab-bar" style={{ position: "absolute", bottom: 40, left: 40, right: 40, zIndex: 10, borderRadius: 28, borderTop: "none", padding: "10px 0" }}>
-                    {([
-                        { key: "short" as const, icon: Clock, label: "短期" },
-                        { key: "shared" as const, icon: Users, label: "共享事件" },
-                        { key: "long" as const, icon: Archive, label: "长期" },
-                        { key: "core" as const, icon: Archive, label: "核心" },
-                    ]).map(tab => (
-                        <button
-                            key={tab.key}
-                            className={`chat-tab${activeTab === tab.key ? " chat-tab-active" : ""}`}
-                            onClick={() => {
-                                setActiveTab(tab.key);
-                                setEntryMenuId(null);
-                            }}
-                        >
-                            <tab.icon size={18} />
-                            <span>{tab.label}</span>
-                        </button>
-                    ))}
-                </div>
-
-                {/* Manual memory editor */}
-                {memoryEditor && (() => {
-                    const isCore = memoryEditor.type === "core";
-                    const isEdit = Boolean(memoryEditor.entry);
-                    const title = `${isEdit ? "编辑" : "新增"}${isCore ? "核心记忆" : "长期记忆"}`;
-                    const placeholder = isCore
-                        ? "记录稳定、长期影响角色判断的事实，例如关系身份、重大约定、长期设定。"
-                        : "记录一次重要事件、承诺、偏好、关系变化，后续对话会参考。";
-                    const contentLength = memoryEditor.content.trim().length;
-                    const overLimit = contentLength > MANUAL_MEMORY_CONTENT_LIMIT;
-                    return (
-                        <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => savingMemory ? undefined : setMemoryEditor(null)}>
-                            <div className="modal-sheet mem-edit-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
-                                <div className="modal-header" data-ui="modal-header">
-                                    <button
-                                        className="modal-header-btn modal-header-btn-muted"
-                                        onClick={() => setMemoryEditor(null)}
-                                        disabled={savingMemory}
-                                    >
-                                        <X size={18} />
-                                    </button>
-                                    <h3 className="modal-title">{title}</h3>
-                                    <button
-                                        className="modal-header-btn modal-header-btn-action"
-                                        onClick={handleSaveManualMemory}
-                                        disabled={savingMemory || !contentLength || overLimit}
-                                    >
-                                        <Check size={18} />
-                                    </button>
-                                </div>
-                                <div className="modal-body mem-edit-body" data-ui="modal-body">
-                                    <textarea
-                                        className="ui-textarea mem-edit-textarea"
-                                        value={memoryEditor.content}
-                                        placeholder={placeholder}
-                                        disabled={savingMemory}
-                                        onChange={event => setMemoryEditor(prev => prev ? { ...prev, content: event.target.value } : prev)}
-                                    />
-                                    <div className={`mem-edit-footer ${overLimit ? "is-over-limit" : ""}`}>
-                                        <span>{isCore ? "CORE" : "LONG TERM"}</span>
-                                        <span>{contentLength}/{MANUAL_MEMORY_CONTENT_LIMIT}</span>
+                        <Section title="共享事件" subtitle="群聊、朋友圈与其他共享场景">
+                            {shared.length ? (
+                                <div className="mem-sane-timeline">{shared.slice(0,16).map((event,index) => (
+                                    <div className="mem-sane-event" key={event.id ?? index}>
+                                        <div className="mem-sane-date">{event.createdAt ? relativeTime(event.createdAt) : "SHARED"}</div>
+                                        <div className="mem-sane-event-text">{event.text}</div>
+                                        <div className="mem-sane-source">{event.sourceApp}{event.sourceDetail ? " · " + event.sourceDetail : ""}</div>
                                     </div>
-                                    <button
-                                        className="ui-btn ui-btn-primary mem-edit-save-btn"
-                                        onClick={handleSaveManualMemory}
-                                        disabled={savingMemory || !contentLength || overLimit}
-                                    >
-                                        {savingMemory ? "保存中..." : "保存记忆"}
-                                    </button>
+                                ))}</div>
+                            ) : empty("还没有共享事件。")}
+                        </Section>
+                    ) : activeTab === "core" ? (
+                        <>
+                            <Section title="核心记忆" subtitle="最稳定、最影响角色判断的内容" count={coreEntries.length}>
+                                {coreEntries.length ? <div className="mem-sane-grid">{coreEntries.map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> : empty("还没有核心记忆。")}
+                            </Section>
+                            <div className="mem-sane-actions">
+                                <button className="mem-sane-action primary" onClick={handleManualRebuildCore} disabled={rebuildingCore}>{rebuildingCore ? "整理中…" : "重新整理核心记忆"}</button>
+                                <button className="mem-sane-action" onClick={() => openCreateMemoryEditor("core")}>新增</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <Section title="关于角色" subtitle="角色自己的长期经历与设定" count={characterMemories.length}>
+                                {characterMemories.length ? <div className="mem-sane-grid">{characterMemories.map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> : empty("角色自身的长期记忆会在相关剧情中逐渐形成。")}
+                            </Section>
+                            <Section title="对你的看法" subtitle="角色的主观理解，不等于客观事实" count={understandingMemories.length}>
+                                {understandingMemories.length ? <div className="mem-sane-grid">{understandingMemories.map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> : empty("角色还没有形成足够稳定的判断。")}
+                            </Section>
+                            <Section title="未来" subtitle="想确认、想做、未完成的事情" count={futureMemories.length}>
+                                {futureMemories.length ? <div className="mem-sane-grid">{futureMemories.map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> : empty("暂时没有未完成的事项。")}
+                            </Section>
+                            <Section title="长期记忆" subtitle="尚未分类的长期记忆" count={uncategorized.length}>
+                                {uncategorized.length ? <div className="mem-sane-grid">{uncategorized.map(e => <MemoryMiniCard key={e.id} entry={e}/>)}</div> : empty("没有未分类记录。")}
+                            </Section>
+                            <div className="mem-sane-actions">
+                                <button className="mem-sane-action primary" onClick={() => void handleManualSummarize("auto")} disabled={summarizing}>{summarizing ? "整理中…" : "整理近期记忆"}</button>
+                                <button className="mem-sane-action" onClick={() => openCreateMemoryEditor("long_term")}>新增记忆</button>
+                            </div>
+                        </>
+                    )}
+
+                    <div className="mem-sane-actions">
+                        <button className="mem-sane-action" onClick={() => openCreateMemoryEditor("long_term")}><Plus size={13} style={{verticalAlign:"-2px",marginRight:4}}/>手动添加</button>
+                        <button className="mem-sane-action" onClick={() => { onSelectChar(""); }}><X size={13} style={{verticalAlign:"-2px",marginRight:4}}/>返回角色</button>
+                    </div>
+
+                    {memoryEditor && (() => {
+                        const isCore = memoryEditor.type === "core";
+                        const isEdit = Boolean(memoryEditor.entry);
+                        const title = `${isEdit ? "编辑" : "新增"}${isCore ? "核心记忆" : "长期记忆"}`;
+                        const contentLength = memoryEditor.content.trim().length;
+                        const overLimit = contentLength > MANUAL_MEMORY_CONTENT_LIMIT;
+                        return (
+                            <div className="modal-overlay modal-overlay-bottom" data-ui="modal" onClick={() => savingMemory ? undefined : setMemoryEditor(null)}>
+                                <div className="modal-sheet mem-edit-sheet" data-ui="modal-sheet" onClick={event => event.stopPropagation()}>
+                                    <div className="modal-header" data-ui="modal-header">
+                                        <button className="modal-header-btn modal-header-btn-muted" onClick={() => setMemoryEditor(null)} disabled={savingMemory}><X size={18}/></button>
+                                        <h3 className="modal-title">{title}</h3>
+                                        <button className="modal-header-btn modal-header-btn-action" onClick={handleSaveManualMemory} disabled={savingMemory || !contentLength || overLimit}><Check size={18}/></button>
+                                    </div>
+                                    <div className="modal-body mem-edit-body" data-ui="modal-body">
+                                        <textarea className="ui-textarea mem-edit-textarea" value={memoryEditor.content} placeholder={isCore ? "记录稳定、长期影响角色判断的事实。" : "记录重要事件、承诺、偏好或关系变化。"} disabled={savingMemory} onChange={event => setMemoryEditor(prev => prev ? {...prev,content:event.target.value}:prev)}/>
+                                        <div className={`mem-edit-footer ${overLimit ? "is-over-limit" : ""}`}><span>{isCore ? "CORE" : "LONG TERM"}</span><span>{contentLength}/{MANUAL_MEMORY_CONTENT_LIMIT}</span></div>
+                                        <button className="ui-btn ui-btn-primary mem-edit-save-btn" onClick={handleSaveManualMemory} disabled={savingMemory || !contentLength || overLimit}>{savingMemory ? "保存中..." : "保存记忆"}</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })()}
+                        );
+                    })()}
 
-                {/* Confirm delete single entry */}
-                {confirmDeleteEntryId && (
-                    <ConfirmDialog
-                        title="确认删除？"
-                        message="删除记忆条目后无法恢复。是否继续？"
-                        icon={AlertCircle}
-                        variant="danger"
-                        confirmLabel="确认删除"
-                        onConfirm={() => {
-                            handleDeleteEntry(confirmDeleteEntryId);
-                            setConfirmDeleteEntryId(null);
-                        }}
-                        onCancel={() => setConfirmDeleteEntryId(null)}
-                    />
-                )}
-
-                {/* Confirm clear all long-term entries */}
-                {confirmClearAll && (
-                    <ConfirmDialog
-                        title="确认清除？"
-                        message={activeTab === "core" ? "将清除该角色所有核心记忆，此操作无法恢复。" : "将清除该角色所有长期记忆，此操作无法恢复。"}
-                        icon={AlertCircle}
-                        variant="danger"
-                        confirmLabel="确认清除"
-                        onConfirm={() => {
-                            handleClearEntries(activeTab === "core" ? "core" : "long_term");
-                            setConfirmClearAll(false);
-                        }}
-                        onCancel={() => setConfirmClearAll(false)}
-                    />
-                )}
+                    {confirmDeleteEntryId && (
+                        <ConfirmDialog title="确认删除？" message="删除记忆条目后无法恢复。是否继续？" icon={AlertCircle} variant="danger" confirmLabel="确认删除" onConfirm={() => { void handleDeleteEntry(confirmDeleteEntryId); setConfirmDeleteEntryId(null); }} onCancel={() => setConfirmDeleteEntryId(null)}/>
+                    )}
+                </div>
             </div>
         );
     }
