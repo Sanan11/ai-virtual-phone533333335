@@ -2552,6 +2552,13 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
             dateInfo: detailAny.dateInfo || (launchContextRecord as any)?.dateInfo || null,
           });
         }
+        if (nextAppId === "story") {
+          const detailAny = detail as Record<string, any>;
+          setStoryLaunchContext({
+            characterId: detailAny.characterId || (launchContextRecord as any)?.characterId || null,
+            dateInfo: detailAny.dateInfo || (launchContextRecord as any)?.dateInfo || null,
+          });
+        }
         setActiveApp(nextAppId as DesktopIconId);
         if (detail.sessionId) setChatInitSessionId(detail.sessionId);
         else setChatInitSessionId(null);

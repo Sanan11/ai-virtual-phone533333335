@@ -72,6 +72,8 @@ type StoryAppProps = {
     location?: string;
     time?: string;
     matter?: string;
+    messageId?: string;
+    sessionId?: string;
   } | null;
 };
 
@@ -358,19 +360,26 @@ export function StoryApp({ onClose, initialCharacterId, initialDateInfo }: Story
         activeSessionIdRef.current = session.id;
         setVisibleMessageCount(STORY_INITIAL_LOAD);
 
-        // 若通过线下邀约卡片进入，自动生成开篇剧情引导
+        // 若通过线下邀约卡片进入，自动生成开篇剧情引导（含持久化幂等性校验）
         if (!initializedDateRef.current && initialDateInfo) {
           initializedDateRef.current = true;
           const loc = initialDateInfo.location?.trim() || "约定地点";
           const tim = initialDateInfo.time?.trim() || "约定时分";
           const mat = initialDateInfo.matter?.trim() || "赴约同行";
-          const introText = `【线下赴约 · ${loc}】\n约定时分：${tim}\n事由：${mat}\n你如约来到${loc}，不远处的身影在微风与灯火中渐渐清晰……`;
-          pushStoryMessage({
-            sessionId: session.id,
-            role: "assistant",
-            rawContent: introText,
-            renderedContent: `<p><strong>【线下赴约 · ${loc}】</strong></p><p>约定时分：${tim}</p><p>事由：${mat}</p><p>你如约来到${loc}，不远处的身影在微风与灯火中渐渐清晰……</p>`,
-          });
+          const introMarker = `【线下赴约 · ${loc}】`;
+          const currentStoredMessages = loadStoryMessages(session.id);
+          const alreadyHasIntro = currentStoredMessages.some(
+            (msg) => msg.rawContent?.includes(introMarker) && msg.rawContent?.includes(tim)
+          );
+          if (!alreadyHasIntro) {
+            const introText = `${introMarker}\n约定时分：${tim}\n事由：${mat}\n你如约来到${loc}，不远处的身影在微风与灯火中渐渐清晰……`;
+            pushStoryMessage({
+              sessionId: session.id,
+              role: "assistant",
+              rawContent: introText,
+              renderedContent: `<p><strong>${introMarker}</strong></p><p>约定时分：${tim}</p><p>事由：${mat}</p><p>你如约来到${loc}，不远处的身影在微风与灯火中渐渐清晰……</p>`,
+            });
+          }
         }
 
         setMessages(loadStoryMessages(session.id));

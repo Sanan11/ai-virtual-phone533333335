@@ -850,7 +850,14 @@ function AppCardBubble({ msg, characterId, characterName }: { msg: ChatMessage; 
                 detail: {
                     appId: "story",
                     characterId,
-                    dateInfo: { location, time, matter },
+                    sessionId: msg.sessionId,
+                    dateInfo: {
+                        location,
+                        time,
+                        matter,
+                        messageId: msg.id,
+                        sessionId: msg.sessionId,
+                    },
                 },
             }));
             return;
